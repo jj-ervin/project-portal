@@ -33,3 +33,20 @@ On the workbench branch, `docs/PACKAGE-CONTRACTS.md` documents `createWorkbenchU
 - Produce a dependency/ownership matrix and runnable minimal-consumer plan.
 
 This is an incremental evidence note, not approval to merge or publish.
+
+## Source-level workbench review (additional verification)
+
+Inspected `src/workbenchUI.js` and `tests/workbenchUI.test.js` on `feature/ckp-gui-007-workbench`:
+
+- Factory requires host-provided `document`, `layout`, `explorer`, `content`, `context`. It inserts a nav activity rail and two resize separators into the layout.
+- Custom `activities` and `onActivity(id)` are supported, so ProPro can supply portfolio-oriented labels without modifying generic code.
+- The frozen API is `activate(id)`, `widths()`, `setPanelVisible(panel, visible)`, `panelVisible(panel)`.
+- Optional injected storage persists **panel widths only**, not panel visibility or project-level layout mode. ProPro must not assume full workspace preference persistence.
+- Unit tests cover activity selection, keyboard resize/width persistence, independent panel hide/restore, and invalid panel names.
+- **Potential integration risk to verify in real browser:** pointer resizing and narrow viewport behavior; the inspected unit tests do not establish visual correctness. The factory has no `destroy()` API; confirm lifecycle expectations before dynamic remounting.
+- Workbench's default activity labels include creative-specific terms (Documents, Assets), but consumer-supplied activities provide an escape hatch. ProPro should explicitly pass its own navigation definitions.
+- There is no card collection or view-mode implementation in this source. Do not mistake panel visibility for individual project-tile minimization.
+
+**ProPro minimum integration mapping:** `layout` = outer Cockpit shell; `explorer` = project/portfolio navigation; `content` = dashboard and project views; `context` = optional inspector. Domain-specific cards remain ProPro-owned until a generic collection primitive is approved.
+
+No runtime tests were executed in this remote source review.
