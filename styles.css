@@ -94,6 +94,22 @@ body { background:#f5f6fa; }
 .overview-stats div { display:flex; flex-direction:column; gap:1px; min-height:69px; padding:9px 12px; background:#fff; border:1px solid #dfe4ee; border-radius:9px; }
 .overview-stats strong { font-size:20px; line-height:1.1; font-weight:650; color:#354c9a; }
 .overview-stats span { color:var(--muted); font-size:11px; }
+#home-pins { margin:0 0 22px; }
+#home-pins > .section-head { margin-bottom:8px; }
+#home-pins > .section-head button { min-height:27px; padding:4px 8px; border:1px solid #d4dcea; border-radius:5px; background:#fff; color:#43527a; font-size:11px; }
+#home-pins > .muted { margin:0; font-size:11px; }
+.home-pin-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:8px; }
+.home-pin { min-width:0; padding:10px; border:1px solid #dfe4ee; border-radius:9px; background:#fff; }
+.home-pin-head { display:flex; justify-content:space-between; align-items:start; gap:6px; }
+.home-pin h4 { margin:3px 0 0; font-size:13px; overflow-wrap:anywhere; }
+.home-pin-head > button { min-width:24px; min-height:24px; padding:0; border:0; border-radius:4px; background:transparent; color:#68748a; font-size:17px; }
+.home-pin p { margin:6px 0 10px; color:var(--muted); font-size:11px; overflow-wrap:anywhere; }
+.home-pin > button { min-height:27px; padding:4px 8px; border:1px solid #d4dcea; border-radius:5px; background:#f8f9fc; color:#4058a6; font-size:11px; }
+.pin-chart { display:grid; gap:5px; margin-top:9px; }
+.pin-chart > div { display:grid; grid-template-columns:65px minmax(0,1fr) 20px; align-items:center; gap:6px; font-size:10px; }
+.pin-chart-track { height:7px; border-radius:5px; background:#edf0f7; overflow:hidden; }
+.pin-chart-track span { display:block; height:100%; border-radius:5px; background:#6c7cc0; }
+.pin-chart strong { text-align:right; font-size:10px; }
 .section-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:9px; }
 .section-head h3 { margin:0; font-size:13px; }
 .section-head span { color:var(--muted); font-size:11px; }

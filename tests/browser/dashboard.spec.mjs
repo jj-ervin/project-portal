@@ -195,6 +195,51 @@ test('center workspace opens project, CLI and local document tabs independently 
   expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
 });
 
+test('Home pins local projects, resource entries and a data display while Workspace resumes tabs', async ({page}) => {
+  await page.setViewportSize({width:1280,height:800});
+  await page.goto('/');
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Workspace'}).click();
+  await expect(page.getByRole('heading',{name:'Your open work'})).toBeVisible();
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Home'}).click();
+  await page.getByRole('button',{name:'New project'}).first().click();
+  await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Studio');
+  await page.getByRole('button',{name:'Create project',exact:true}).click();
+  await page.getByRole('group',{name:'Project sections'}).getByRole('button',{name:'Resources'}).click();
+  await page.getByLabel('New resources entry').fill('Field guide');
+  await page.getByRole('button',{name:'Add entry'}).click();
+  await page.getByRole('button',{name:'Pin Field guide to Home'}).click();
+  const before = await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'));
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Home'}).click();
+  await page.getByRole('button',{name:'Pin Studio to Home'}).click();
+  await page.getByRole('button',{name:'Pin data display'}).click();
+  await expect(page.locator('#home-pins')).toContainText('Studio');
+  await expect(page.locator('#home-pins')).toContainText('Field guide');
+  await expect(page.locator('#home-pins')).toContainText('Workspace activity');
+  await expect(page.locator('.pin-chart')).toContainText('Resources');
+  await expect(page.locator('.pin-chart > div').filter({hasText:'Resources'}).locator('strong')).toHaveText('1');
+  await page.screenshot({path:'docs/screenshots/propro-pinned-home-1280.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path:'docs/screenshots/propro-pinned-home-390.png',fullPage:true});
+  const violations = await page.evaluate(source => { const script=document.createElement('script'); script.textContent=source; document.head.appendChild(script); return window.axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa']}}).then(result=>result.violations.map(v=>v.id)); }, axe.source);
+  expect(violations).toEqual([]);
+  await page.reload();
+  await expect(page.locator('#home-pins')).toContainText('Field guide');
+  await expect(page.locator('#home-pins')).toContainText('Workspace activity');
+  await page.locator('#home-pins').getByRole('button',{name:'Open Field guide'}).click();
+  await expect(page.locator('#editor-tab-list').getByRole('tab',{name:'Field guide'})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Home'}).click();
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Workspace'}).click();
+  await expect(page.locator('#editor-tab-list').getByRole('tab',{name:'Field guide'})).toHaveAttribute('aria-selected','true');
+  expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
+  await page.locator('#workspace-extra').getByRole('button',{name:'Open project'}).click();
+  await page.getByRole('group',{name:'Project sections'}).getByRole('button',{name:'Resources'}).click();
+  await page.getByRole('button',{name:'Remove Field guide'}).click();
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Home'}).click();
+  await expect(page.locator('#home-pins')).not.toContainText('Field guide');
+  await expect(page.locator('.pin-chart > div').filter({hasText:'Resources'}).locator('strong')).toHaveText('0');
+});
+
 test('project actions and independent card state survive mode changes and reload', async ({page}) => {
   await page.goto('/');
   await page.getByRole('button',{name:'New project'}).first().click();
