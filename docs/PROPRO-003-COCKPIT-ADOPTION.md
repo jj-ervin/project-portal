@@ -34,3 +34,7 @@ ProPro owns portfolio/project domain objects, persistence, resources, tasks, rel
 ## Exit gate
 
 Do not declare PROPRO-003 complete without a reproducible install, actual Cockpit GUI package integration, passing tests, screenshots, and owner acceptance of the running UI. Keep the existing PROPRO-002 prototype working until replacement is verified.
+
+## PROP-CKP-001B local implementation note (2026-11-05)
+
+The minimal dashboard candidate, its tested package integration, and its still-open human acceptance gates are recorded in `docs/PROP-CKP-001B-IMPLEMENTATION.md`. The original version 1 data key/schema is retained, and the active feature branch now serves the dashboard through `npm start`. This note does not close PROPRO-003 or approve merge/publication.
