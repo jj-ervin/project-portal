@@ -8,6 +8,9 @@ test('opening index.html directly loads the styled dashboard and its actions', a
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(pathToFileURL(resolve('index.html')).href);
+  await expect(page.locator('.editor-tabs')).toBeHidden();
+  await expect(page.locator('#dashboard-view')).toBeVisible();
+  await expect(page.getByRole('tab',{name:'Home'})).toHaveCount(0);
   await expect(page.getByRole('group',{name:'View'}).getByRole('button',{name:'Large tiles'})).toHaveAttribute('aria-pressed','true');
   await expect(page.locator('#workbench')).toHaveCSS('display','grid');
   await page.getByRole('button',{name:'New project'}).first().click();
@@ -172,12 +175,22 @@ test('center workspace opens project, CLI and local document tabs independently 
   await page.screenshot({path:'docs/screenshots/propro-editor-tabs-390.png',fullPage:true});
   await page.getByRole('button',{name:'Close readme.md tab'}).click();
   await expect(page.getByRole('tab',{name:'readme.md'})).toHaveCount(0);
-  await page.getByRole('tab',{name:'Home'}).click();
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Home'}).click();
+  await expect(page.locator('.editor-tabs')).toBeHidden();
+  await expect(page.getByRole('tab',{name:'Home'})).toHaveCount(0);
   await expect(page.getByRole('heading',{name:'Your workspace'})).toBeVisible();
-  await expect(page.getByRole('tab',{name:'Studio'})).toBeVisible();
+  await expect(page.locator('#editor-tab-list [data-workspace-tab^="project:"]')).toHaveCount(1);
+  await page.getByRole('button',{name:'Resume work'}).click();
+  await expect(page.locator('#editor-tab-list').getByRole('tab',{name:'CLI scratchpad'})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Home'}).click();
+  await page.getByRole('button',{name:'Open dashboard as tab'}).click();
+  await expect(page.getByRole('tab',{name:'Dashboard'})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Home'}).click();
+  await expect(page.locator('.editor-tabs')).toBeHidden();
   await page.getByRole('button',{name:'Toggle primary sidebar'}).click();
   await expect(page.locator('#explorer')).toBeHidden();
-  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Projects'}).click();
+  await page.screenshot({path:'docs/screenshots/propro-home-no-explorer-390.png',fullPage:true});
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Projects'}).click({timeout:5000});
   await expect(page.locator('#explorer')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
 });
@@ -191,7 +204,7 @@ test('project actions and independent card state survive mode changes and reload
   await page.getByRole('button',{name:'New project'}).first().click();
   await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Workshop');
   await page.getByRole('button',{name:'Create project',exact:true}).click();
-  await page.getByRole('tab',{name:'Home'}).click();
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Home'}).click();
   await page.getByRole('button',{name:'Minimize Garden'}).click();
   for (const mode of ['Mini','Grid','List','Large']) {
     const layoutButton = page.getByRole('group',{name:'View'}).getByRole('button',{name:`${mode} tiles`});
@@ -201,7 +214,7 @@ test('project actions and independent card state survive mode changes and reload
     await expect(layoutButton).toHaveCSS('background-color','rgb(67, 89, 169)');
     await expect(page.getByRole('button',{name:'Expand Garden'})).toBeVisible();
     await expect(page.getByRole('button',{name:'Minimize Workshop'})).toBeVisible();
-    await expect(page.getByRole('tab',{name:'Workshop'})).toBeVisible();
+    await expect(page.locator('#editor-tab-list [data-workspace-tab^="project:"]')).toHaveCount(2);
   }
   await page.getByRole('button',{name:'Open Garden'}).click();
   await page.getByRole('group',{name:'Project sections'}).getByRole('button',{name:'Tasks'}).click();

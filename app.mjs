@@ -13,8 +13,9 @@ let prefs = readPrefs(localStorage.getItem(PREF_KEY), data.projects.map(p => p.i
 let filterQuery = '';
 let attachments = [];
 let composerSuggestions = [];
-let workspaceTabs = [{id:'home',kind:'home',title:'Home'}];
+let workspaceTabs = [];
 let activeWorkspaceTab = 'home';
+let lastWorkTab = null;
 const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [
   {id:'home',label:'Home',glyph:'⌂'}, {id:'projects',label:'Projects',glyph:'▤'},
   {id:'search',label:'Search',glyph:'⌕'}, {id:'conversation',label:'Conversation',glyph:'✦'}
@@ -108,6 +109,10 @@ const center = $('content');
 const dashboardView = document.createElement('div');
 dashboardView.id = 'dashboard-view';
 for (const child of [...center.children]) if (child.id !== 'detail') dashboardView.append(child);
+const homeActions = document.createElement('div');
+homeActions.className = 'home-actions';
+homeActions.innerHTML = '<button id="resume-work" type="button" hidden>Resume work</button><button id="pin-dashboard" type="button">Open dashboard as tab</button><button id="home-open-cli" type="button">Open CLI</button><label class="open-file-button">Open file<input id="open-home-file" type="file" accept=".md,.txt,.json,.js,.ts,.css,.html,.pdf,text/plain,text/markdown,application/pdf"></label>';
+dashboardView.prepend(homeActions);
 const workspaceExtra = document.createElement('section');
 workspaceExtra.id = 'workspace-extra'; workspaceExtra.setAttribute('aria-label', 'Open workspace item');
 const editorTabs = document.createElement('div');
@@ -127,19 +132,20 @@ function openCliTab() {
   activateWorkspaceTab('cli');
 }
 function activateWorkspaceTab(id) {
-  const tab = workspaceTab(id) || workspaceTabs[0];
-  activeWorkspaceTab = tab.id;
-  selected = tab.kind === 'project' ? tab.projectId : null;
+  const tab = id === 'home' ? null : workspaceTab(id);
+  activeWorkspaceTab = tab?.id || 'home';
+  if (tab && tab.kind !== 'dashboard') lastWorkTab = tab.id;
+  selected = tab?.kind === 'project' ? tab.projectId : null;
   render();
 }
 function closeWorkspaceTab(id) {
-  if (id === 'home') return;
   const index = workspaceTabs.findIndex(tab => tab.id === id);
   const tab = workspaceTabs[index];
   if (!tab) return;
   if (tab.url) URL.revokeObjectURL(tab.url);
   workspaceTabs.splice(index, 1);
-  if (activeWorkspaceTab === id) activateWorkspaceTab(workspaceTabs[Math.max(0,index - 1)].id);
+  if (lastWorkTab === id) lastWorkTab = workspaceTabs.findLast(item => item.kind !== 'dashboard')?.id || null;
+  if (activeWorkspaceTab === id) activateWorkspaceTab(workspaceTabs[Math.max(0,index - 1)]?.id || 'home');
   else renderWorkspaceTabs();
 }
 function renderWorkspaceTabs() {
@@ -151,18 +157,20 @@ function renderWorkspaceTabs() {
     button.type = 'button'; button.setAttribute('role','tab');
     button.dataset.workspaceTab = tab.id;
     button.setAttribute('aria-selected',String(tab.id === activeWorkspaceTab));
-    button.setAttribute('aria-controls',tab.kind === 'home' ? 'dashboard-view' : tab.kind === 'project' ? 'detail' : 'workspace-extra');
+    button.setAttribute('aria-controls',tab.kind === 'dashboard' ? 'dashboard-view' : tab.kind === 'project' ? 'detail' : 'workspace-extra');
     button.tabIndex = tab.id === activeWorkspaceTab ? 0 : -1;
     button.textContent = tab.kind === 'project' ? (data.projects.find(p => p.id === tab.projectId)?.name || 'Project') : tab.title;
     group.append(button);
-    if (tab.id !== 'home') {
-      const close = document.createElement('button'); close.type = 'button'; close.className = 'close-editor-tab';
-      close.dataset.closeWorkspaceTab = tab.id; close.setAttribute('aria-label',`Close ${button.textContent} tab`); close.textContent = '×';
-      group.append(close);
-    }
+    const close = document.createElement('button'); close.type = 'button'; close.className = 'close-editor-tab';
+    close.dataset.closeWorkspaceTab = tab.id; close.setAttribute('aria-label',`Close ${button.textContent} tab`); close.textContent = '×';
+    group.append(close);
     list.append(group);
   }
-  dashboardView.hidden = activeWorkspaceTab !== 'home';
+  editorTabs.hidden = activeWorkspaceTab === 'home';
+  dashboardView.hidden = activeWorkspaceTab !== 'home' && activeWorkspaceTab !== 'dashboard-tab';
+  homeActions.hidden = activeWorkspaceTab !== 'home';
+  $('resume-work').hidden = !lastWorkTab || !workspaceTab(lastWorkTab);
+  $('pin-dashboard').textContent = workspaceTab('dashboard-tab') ? 'Show dashboard tab' : 'Open dashboard as tab';
   $('detail').hidden = workspaceTab(activeWorkspaceTab)?.kind !== 'project';
   workspaceExtra.hidden = !['cli','file'].includes(workspaceTab(activeWorkspaceTab)?.kind);
   const active = workspaceTab(activeWorkspaceTab);
@@ -201,7 +209,13 @@ $('editor-tab-list').addEventListener('keydown', event => {
   $('editor-tab-list').querySelectorAll('[role="tab"]')[next].focus();
 });
 $('open-cli-tab').addEventListener('click', openCliTab);
-$('open-workspace-file').addEventListener('change', async event => {
+$('home-open-cli').addEventListener('click', openCliTab);
+$('pin-dashboard').addEventListener('click', () => {
+  if (!workspaceTab('dashboard-tab')) workspaceTabs.unshift({id:'dashboard-tab',kind:'dashboard',title:'Dashboard'});
+  activateWorkspaceTab('dashboard-tab');
+});
+$('resume-work').addEventListener('click', () => activateWorkspaceTab(lastWorkTab));
+async function openWorkspaceFile(event) {
   const file = event.target.files[0]; event.target.value = '';
   if (!file) return;
   const pdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -212,7 +226,9 @@ $('open-workspace-file').addEventListener('change', async event => {
     if (pdf) tab.url = URL.createObjectURL(file); else tab.content = await file.text();
     workspaceTabs.push(tab); activateWorkspaceTab(tab.id);
   } catch { notice('Could not open that local file.'); }
-});
+}
+$('open-workspace-file').addEventListener('change', openWorkspaceFile);
+$('open-home-file').addEventListener('change', openWorkspaceFile);
 workspaceExtra.addEventListener('submit', event => {
   if (event.target.id !== 'workspace-cli-form') return;
   event.preventDefault();
@@ -366,6 +382,6 @@ $('export').onclick = () => { const blob = new Blob([JSON.stringify(data,null,2)
 $('import').onchange = async e => { const file = e.target.files[0]; e.target.value = ''; if (!file) return; try { if (file.size > 5_000_000) throw Error('File too large'); pendingImport = validateData(JSON.parse(await file.text())); $('import-dialog').showModal(); } catch (error) { pendingImport = null; notice('Import failed: ' + error.message); } };
 $('cancel-import').onclick = () => { pendingImport = null; $('import-dialog').close(); };
 $('import-dialog').addEventListener('close', () => { if (!$('import-dialog').open) pendingImport = null; });
-$('confirm-import').onclick = () => { if (!pendingImport) return; data = pendingImport; pendingImport = null; loadError = false; $('new-project').disabled = false; for (const tab of workspaceTabs) if (tab.url) URL.revokeObjectURL(tab.url); workspaceTabs = [workspaceTabs[0]]; activeWorkspaceTab = 'home'; selected = null; detailTab = 'Overview'; prefs = readPrefs(JSON.stringify(prefs), data.projects.map(p => p.id)); saveData(); savePrefs(); $('import-dialog').close(); notice('Imported project backup.'); };
+$('confirm-import').onclick = () => { if (!pendingImport) return; data = pendingImport; pendingImport = null; loadError = false; $('new-project').disabled = false; for (const tab of workspaceTabs) if (tab.url) URL.revokeObjectURL(tab.url); workspaceTabs = []; activeWorkspaceTab = 'home'; lastWorkTab = null; selected = null; detailTab = 'Overview'; prefs = readPrefs(JSON.stringify(prefs), data.projects.map(p => p.id)); saveData(); savePrefs(); $('import-dialog').close(); notice('Imported project backup.'); };
 render();
 if (loadError) { $('new-project').disabled = true; notice('Saved data could not be read. Import a valid backup; existing browser data was left untouched.'); }
