@@ -28,8 +28,55 @@ const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), e
   if (id === 'workspace') { activateWorkspaceTab(lastWorkTab || 'workspace'); ($('workspace-extra').querySelector('h2') || $('editor-tab-list').querySelector('[role="tab"]'))?.focus(); }
   if (id === 'projects') { workbench.setPanelVisible('explorer', true); syncLayoutControls(); activateWorkspaceTab('home'); (document.querySelector('.nav-project') || document.querySelector('.explorer-head button')).focus(); }
   if (id === 'search') { activateWorkspaceTab('home'); $('global-search').focus(); }
-  if (id === 'conversation') { workbench.setPanelVisible('context', true); activateUtilityTab('conversation'); syncLayoutControls(); $('composer-input').focus(); }
+  if (id === 'conversation') { workbench.setPanelVisible('context', true); syncLayoutControls(); $('composer-input').focus(); }
 }});
+const legacyBottomDock = workbench.contextDock() === 'bottom';
+if (legacyBottomDock) workbench.dockContext('right');
+const bottomStateKey = 'propro-bottom-pane-v1';
+let bottomVisible = legacyBottomDock;
+let bottomHeight = 240;
+try {
+  const saved = JSON.parse(localStorage.getItem(bottomStateKey) || '{}');
+  if (typeof saved.visible === 'boolean') bottomVisible = saved.visible;
+  if (Number.isFinite(saved.height)) bottomHeight = Math.max(160, Math.min(480, saved.height));
+} catch {}
+function saveBottomState() { try { localStorage.setItem(bottomStateKey, JSON.stringify({visible:bottomVisible,height:bottomHeight})); } catch {} }
+const bottomGrip = document.createElement('div');
+bottomGrip.id = 'bottom-resize'; bottomGrip.className = 'bottom-resize'; bottomGrip.tabIndex = 0;
+bottomGrip.setAttribute('role','separator'); bottomGrip.setAttribute('aria-label','Resize bottom panel');
+bottomGrip.setAttribute('aria-orientation','horizontal'); bottomGrip.setAttribute('aria-valuemin','160'); bottomGrip.setAttribute('aria-valuemax','480');
+const bottomPanel = document.createElement('section');
+bottomPanel.id = 'bottom-panel'; bottomPanel.className = 'bottom-panel';
+bottomPanel.setAttribute('role','region'); bottomPanel.setAttribute('aria-label','Bottom tools');
+$('workbench').append(bottomGrip, bottomPanel);
+function setBottomHeight(height) {
+  bottomHeight = Math.max(160, Math.min(480, Math.round(height)));
+  $('workbench').style.setProperty('--propro-bottom-height', `${bottomHeight}px`);
+  bottomGrip.setAttribute('aria-valuenow', String(bottomHeight));
+  saveBottomState();
+}
+function setBottomVisible(visible) {
+  bottomVisible = visible;
+  bottomGrip.hidden = !visible; bottomPanel.hidden = !visible;
+  $('workbench').classList.toggle('has-bottom', visible);
+  saveBottomState(); syncLayoutControls();
+}
+setBottomHeight(bottomHeight);
+setBottomVisible(bottomVisible);
+bottomGrip.addEventListener('keydown', event => {
+  if (!['ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
+  event.preventDefault();
+  setBottomHeight(event.key === 'Home' ? 160 : event.key === 'End' ? 480 : bottomHeight + (event.key === 'ArrowUp' ? 16 : -16));
+});
+bottomGrip.addEventListener('pointerdown', event => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  const startY = event.clientY, startHeight = bottomHeight;
+  bottomGrip.setPointerCapture(event.pointerId);
+  const move = e => setBottomHeight(startHeight + startY - e.clientY);
+  const stop = () => { bottomGrip.removeEventListener('pointermove', move); bottomGrip.removeEventListener('pointerup', stop); bottomGrip.removeEventListener('pointercancel', stop); };
+  bottomGrip.addEventListener('pointermove', move); bottomGrip.addEventListener('pointerup', stop); bottomGrip.addEventListener('pointercancel', stop);
+});
 function syncLayoutControls() {
   const explorerVisible = workbench.panelVisible('explorer');
   const contextVisible = workbench.panelVisible('context');
@@ -41,15 +88,16 @@ function syncLayoutControls() {
   left.setAttribute('aria-pressed', String(dock === 'left' ? contextVisible : explorerVisible));
   $('dock-right').setAttribute('aria-controls', dock === 'left' ? 'explorer' : 'context');
   $('dock-right').setAttribute('aria-pressed', String(dock === 'left' ? explorerVisible : contextVisible && dock === 'right'));
-  $('dock-bottom').setAttribute('aria-pressed', String(contextVisible && dock === 'bottom'));
+  $('dock-bottom').setAttribute('aria-controls', 'bottom-panel');
+  $('dock-bottom').setAttribute('aria-pressed', String(bottomVisible));
 }
 syncLayoutControls();
-const utilityTabs = ['conversation', 'terminal', 'problems', 'notes'];
-const utilityLabels = {conversation:'Conversation', terminal:'CLI scratchpad', problems:'Problems', notes:'Notes'};
+const utilityTabs = ['terminal', 'problems', 'notes'];
+const utilityLabels = {terminal:'CLI scratchpad', problems:'Problems', notes:'Notes'};
 const tabStrip = document.createElement('div');
 tabStrip.className = 'utility-tabs';
 tabStrip.setAttribute('role', 'tablist');
-tabStrip.setAttribute('aria-label', 'Panel views');
+tabStrip.setAttribute('aria-label', 'Bottom panel views');
 for (const id of utilityTabs) {
   const button = document.createElement('button');
   button.type = 'button'; button.id = `utility-tab-${id}`;
@@ -57,11 +105,7 @@ for (const id of utilityTabs) {
   button.textContent = utilityLabels[id];
   tabStrip.append(button);
 }
-const conversationView = document.createElement('div');
-conversationView.id = 'utility-conversation'; conversationView.className = 'utility-view conversation-view';
-conversationView.setAttribute('role', 'tabpanel'); conversationView.setAttribute('aria-labelledby', 'utility-tab-conversation');
-conversationView.append($('context').querySelector('.context-content'), $('composer'));
-$('context').append(tabStrip, conversationView);
+bottomPanel.append(tabStrip);
 const extraViews = {
   terminal: '<p class="context-eyebrow">LOCAL COMMAND PREVIEW</p><h3>CLI scratchpad</h3><p>Try /help or /status. Nothing runs on your computer.</p><form id="scratch-form"><label for="scratch-input">Command</label><div class="scratch-row"><input id="scratch-input" autocomplete="off" placeholder="/help"><button type="submit">Preview</button></div></form><output id="scratch-output" role="status" aria-live="polite"></output>',
   problems: '<p class="context-eyebrow">WORKSPACE STATUS</p><h3>Problems</h3><p id="problem-summary"></p>',
@@ -71,11 +115,11 @@ for (const id of ['terminal', 'problems', 'notes']) {
   const panel = document.createElement('section');
   panel.id = `utility-${id}`; panel.className = 'utility-view utility-extra';
   panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', `utility-tab-${id}`);
-  panel.innerHTML = extraViews[id]; $('context').append(panel);
+  panel.innerHTML = extraViews[id]; bottomPanel.append(panel);
 }
 const utilityTabKey = 'propro-panel-tab-v1';
 function activateUtilityTab(id) {
-  if (!utilityTabs.includes(id)) id = 'conversation';
+  if (!utilityTabs.includes(id)) id = 'terminal';
   for (const name of utilityTabs) {
     const active = name === id;
     $(`utility-tab-${name}`).setAttribute('aria-selected', String(active));
@@ -85,8 +129,8 @@ function activateUtilityTab(id) {
   if (id === 'problems') $('problem-summary').textContent = loadError ? 'Saved project data could not be read. Import a valid backup before editing.' : 'No project data problems detected. This view does not inspect external services.';
   try { localStorage.setItem(utilityTabKey, id); } catch {}
 }
-let initialUtilityTab = 'conversation';
-try { initialUtilityTab = localStorage.getItem(utilityTabKey) || 'conversation'; } catch {}
+let initialUtilityTab = 'terminal';
+try { initialUtilityTab = localStorage.getItem(utilityTabKey) || 'terminal'; } catch {}
 activateUtilityTab(initialUtilityTab);
 tabStrip.addEventListener('click', event => { const tab = event.target.closest('[role="tab"]'); if (tab) activateUtilityTab(tab.id.replace('utility-tab-', '')); });
 tabStrip.addEventListener('keydown', event => {
@@ -383,17 +427,18 @@ $('create-caps').innerHTML = CAPS.map(c => `<label><input type="checkbox" name="
 $('global-search').addEventListener('input', e => { filterQuery = e.target.value.trim().toLowerCase(); if (activeWorkspaceTab !== 'home') activateWorkspaceTab('home'); else render(); });
 document.addEventListener('keydown', e => { if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) { e.preventDefault(); $('global-search').focus(); } });
 $('toggle-explorer').addEventListener('click', () => { const panel = workbench.contextDock() === 'left' ? 'context' : 'explorer'; workbench.setPanelVisible(panel, !workbench.panelVisible(panel)); syncLayoutControls(); });
-for (const position of ['right','bottom']) $('dock-' + position).addEventListener('click', () => {
-  if (position === 'right' && workbench.contextDock() === 'left') {
+$('dock-right').addEventListener('click', () => {
+  if (workbench.contextDock() === 'left') {
     workbench.setPanelVisible('explorer', !workbench.panelVisible('explorer'));
     syncLayoutControls(); return;
   }
-  const active = workbench.panelVisible('context') && workbench.contextDock() === position;
+  const active = workbench.panelVisible('context');
   if (active) workbench.setPanelVisible('context', false);
-  else { workbench.dockContext(position); workbench.setPanelVisible('context', true); }
+  else workbench.setPanelVisible('context', true);
   syncLayoutControls();
 });
-$('reset-layout').addEventListener('click', () => { workbench.resetLayout(); syncLayoutControls(); notice('Default layout restored.'); });
+$('dock-bottom').addEventListener('click', () => setBottomVisible(!bottomVisible));
+$('reset-layout').addEventListener('click', () => { workbench.resetLayout(); setBottomHeight(240); setBottomVisible(false); syncLayoutControls(); notice('Default layout restored.'); });
 $('composer-files').addEventListener('change', e => { attachments.push(...e.target.files); e.target.value = ''; renderAttachments(); showComposerResult(`${attachments.length} attachment${attachments.length === 1 ? '' : 's'} selected locally. No files have been uploaded.`); });
 $('composer-input').addEventListener('input', renderComposerSuggestions);
 $('composer-input').addEventListener('keydown', e => {
