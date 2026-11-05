@@ -21,17 +21,85 @@ const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), e
   if (id === 'home') { selected = null; detailTab = 'Overview'; filterQuery = ''; $('global-search').value = ''; render(); $('dashboard-heading').focus(); }
   if (id === 'projects') (document.querySelector('.nav-project') || document.querySelector('.explorer-head button')).focus();
   if (id === 'search') $('global-search').focus();
-  if (id === 'conversation') { workbench.setPanelVisible('context', true); syncLayoutControls(); $('composer-input').focus(); }
+  if (id === 'conversation') { workbench.setPanelVisible('context', true); activateUtilityTab('conversation'); syncLayoutControls(); $('composer-input').focus(); }
 }});
 function syncLayoutControls() {
   const explorerVisible = workbench.panelVisible('explorer');
   const contextVisible = workbench.panelVisible('context');
-  const bottom = workbench.contextDock() === 'bottom';
-  $('toggle-explorer').setAttribute('aria-pressed', String(explorerVisible));
-  $('dock-right').setAttribute('aria-pressed', String(contextVisible && !bottom));
-  $('dock-bottom').setAttribute('aria-pressed', String(contextVisible && bottom));
+  const dock = workbench.contextDock();
+  const left = $('toggle-explorer');
+  left.setAttribute('aria-label', dock === 'left' ? 'Toggle left panel' : 'Toggle primary sidebar');
+  left.setAttribute('title', dock === 'left' ? 'Toggle left panel' : 'Toggle primary sidebar');
+  left.setAttribute('aria-controls', dock === 'left' ? 'context' : 'explorer');
+  left.setAttribute('aria-pressed', String(dock === 'left' ? contextVisible : explorerVisible));
+  $('dock-right').setAttribute('aria-controls', dock === 'left' ? 'explorer' : 'context');
+  $('dock-right').setAttribute('aria-pressed', String(dock === 'left' ? explorerVisible : contextVisible && dock === 'right'));
+  $('dock-bottom').setAttribute('aria-pressed', String(contextVisible && dock === 'bottom'));
 }
 syncLayoutControls();
+const utilityTabs = ['conversation', 'terminal', 'problems', 'notes'];
+const utilityLabels = {conversation:'Conversation', terminal:'CLI scratchpad', problems:'Problems', notes:'Notes'};
+const tabStrip = document.createElement('div');
+tabStrip.className = 'utility-tabs';
+tabStrip.setAttribute('role', 'tablist');
+tabStrip.setAttribute('aria-label', 'Panel views');
+for (const id of utilityTabs) {
+  const button = document.createElement('button');
+  button.type = 'button'; button.id = `utility-tab-${id}`;
+  button.setAttribute('role', 'tab'); button.setAttribute('aria-controls', `utility-${id}`);
+  button.textContent = utilityLabels[id];
+  tabStrip.append(button);
+}
+const conversationView = document.createElement('div');
+conversationView.id = 'utility-conversation'; conversationView.className = 'utility-view conversation-view';
+conversationView.setAttribute('role', 'tabpanel'); conversationView.setAttribute('aria-labelledby', 'utility-tab-conversation');
+conversationView.append($('context').querySelector('.context-content'), $('composer'));
+$('context').append(tabStrip, conversationView);
+const extraViews = {
+  terminal: '<p class="context-eyebrow">LOCAL COMMAND PREVIEW</p><h3>CLI scratchpad</h3><p>Try /help or /status. Nothing runs on your computer.</p><form id="scratch-form"><label for="scratch-input">Command</label><div class="scratch-row"><input id="scratch-input" autocomplete="off" placeholder="/help"><button type="submit">Preview</button></div></form><output id="scratch-output" role="status" aria-live="polite"></output>',
+  problems: '<p class="context-eyebrow">WORKSPACE STATUS</p><h3>Problems</h3><p id="problem-summary"></p>',
+  notes: '<p class="context-eyebrow">LOCAL SCRATCH NOTES</p><h3>Notes</h3><label for="panel-notes">Saved in this browser</label><textarea id="panel-notes" rows="8" placeholder="Keep a quick note here…"></textarea>'
+};
+for (const id of ['terminal', 'problems', 'notes']) {
+  const panel = document.createElement('section');
+  panel.id = `utility-${id}`; panel.className = 'utility-view utility-extra';
+  panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', `utility-tab-${id}`);
+  panel.innerHTML = extraViews[id]; $('context').append(panel);
+}
+const utilityTabKey = 'propro-panel-tab-v1';
+function activateUtilityTab(id) {
+  if (!utilityTabs.includes(id)) id = 'conversation';
+  for (const name of utilityTabs) {
+    const active = name === id;
+    $(`utility-tab-${name}`).setAttribute('aria-selected', String(active));
+    $(`utility-tab-${name}`).tabIndex = active ? 0 : -1;
+    $(`utility-${name}`).hidden = !active;
+  }
+  if (id === 'problems') $('problem-summary').textContent = loadError ? 'Saved project data could not be read. Import a valid backup before editing.' : 'No project data problems detected. This view does not inspect external services.';
+  try { localStorage.setItem(utilityTabKey, id); } catch {}
+}
+let initialUtilityTab = 'conversation';
+try { initialUtilityTab = localStorage.getItem(utilityTabKey) || 'conversation'; } catch {}
+activateUtilityTab(initialUtilityTab);
+tabStrip.addEventListener('click', event => { const tab = event.target.closest('[role="tab"]'); if (tab) activateUtilityTab(tab.id.replace('utility-tab-', '')); });
+tabStrip.addEventListener('keydown', event => {
+  const current = utilityTabs.findIndex(id => $(`utility-tab-${id}`) === document.activeElement);
+  if (current < 0 || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+  event.preventDefault();
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? utilityTabs.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + utilityTabs.length) % utilityTabs.length;
+  activateUtilityTab(utilityTabs[next]); $(`utility-tab-${utilityTabs[next]}`).focus();
+});
+$('scratch-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const command = $('scratch-input').value.trim();
+  $('scratch-output').textContent = command === '/help' ? 'Available previews: /help and /status. No commands are executed.' : command === '/status' ? `${data.projects.length} local projects. No terminal connection is active.` : command ? `${command} is not connected. Nothing was executed.` : 'Enter /help or /status.';
+});
+try { $('panel-notes').value = localStorage.getItem('propro-panel-notes-v1') || ''; } catch {}
+$('panel-notes').addEventListener('input', () => { try { localStorage.setItem('propro-panel-notes-v1', $('panel-notes').value); } catch { notice('Could not save the note in this browser.'); } });
+const swapButton = document.createElement('button');
+swapButton.id = 'swap-side-panes'; swapButton.type = 'button'; swapButton.textContent = 'Swap left and right panes';
+$('reset-layout').before(swapButton);
+swapButton.addEventListener('click', () => { workbench.dockContext(workbench.contextDock() === 'left' ? 'right' : 'left'); syncLayoutControls(); $('layout-menu').open = false; });
 
 function matchesProject(project, query) {
   const text = [project.name, ...project.capabilities, ...['items','resources','evidence','links'].flatMap(key => project[key].map(item => item.title))].join(' ').toLowerCase();
@@ -106,8 +174,12 @@ function detailHTML(p) {
 $('create-caps').innerHTML = CAPS.map(c => `<label><input type="checkbox" name="cap" value="${c}">${c}</label>`).join('');
 $('global-search').addEventListener('input', e => { filterQuery = e.target.value.trim().toLowerCase(); render(); });
 document.addEventListener('keydown', e => { if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) { e.preventDefault(); $('global-search').focus(); } });
-$('toggle-explorer').addEventListener('click', () => { workbench.setPanelVisible('explorer', !workbench.panelVisible('explorer')); syncLayoutControls(); });
+$('toggle-explorer').addEventListener('click', () => { const panel = workbench.contextDock() === 'left' ? 'context' : 'explorer'; workbench.setPanelVisible(panel, !workbench.panelVisible(panel)); syncLayoutControls(); });
 for (const position of ['right','bottom']) $('dock-' + position).addEventListener('click', () => {
+  if (position === 'right' && workbench.contextDock() === 'left') {
+    workbench.setPanelVisible('explorer', !workbench.panelVisible('explorer'));
+    syncLayoutControls(); return;
+  }
   const active = workbench.panelVisible('context') && workbench.contextDock() === position;
   if (active) workbench.setPanelVisible('context', false);
   else { workbench.dockContext(position); workbench.setPanelVisible('context', true); }

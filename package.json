@@ -7,9 +7,11 @@
     "test": "node --test tests/*.test.mjs",
     "test:browser": "playwright test"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
-    "@cockpit/gui": "file:vendor/cockpit-gui-0.1.1.tgz"
+    "@cockpit/gui": "file:vendor/cockpit-gui-0.1.2.tgz"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

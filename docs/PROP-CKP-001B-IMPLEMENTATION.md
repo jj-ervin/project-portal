@@ -66,3 +66,11 @@ The composer now offers keyboard-operable `#` capability tags, `@` project refer
 ### Panel controls in the top bar — 2026-11-05
 
 Owner visual feedback moved placement and visibility out of the conversation pane and into a compact top-bar icon group modeled on familiar editor layout controls. The group toggles the primary sidebar, bottom conversation panel and right conversation panel; a neighboring layout control restores the default arrangement. Each icon has an accessible name, tooltip, keyboard focus and pressed state. Clicking an active bottom/right icon hides that panel; clicking it again restores that placement. The pane header now contains only its identity. Updated 390px, 1280px and bottom-docked captures verify the layout, while the browser suite checks the controls and narrow-width fit.
+
+### Tabbed utility pane and side swap — 2026-11-05
+
+The conversation pane now contains four keyboard-accessible views: Conversation, CLI scratchpad, Problems and Notes. The CLI scratchpad previews `/help` and `/status` locally and cannot execute commands. Problems reports local project-data loading state; Notes save separately from version 1 project records in browser storage. Tab choice also persists separately. The top Layout menu swaps the left and right side panes; the same context pane can still occupy the bottom. Top bar icons toggle whichever panel occupies their region. The private Cockpit GUI `0.1.2` package owns layout, resize and persistence while ProPro owns the view content. Running captures include `docs/screenshots/propro-docked-1280.png` and `docs/screenshots/propro-swapped-1280.png`; browser tests cover tab selection, reload, side swap, resize labels, local-only command behavior, data preservation and automated accessibility checks.
+
+This slice does not connect a system terminal, email, calendar or external widget. Those need explicit provider, permission and persistence contracts before pinning. Arbitrary placement of every view into every region, drag reorder and detached windows remain future work.
+
+Package provenance: Cockpit GUI source commit `35ec769ea4e74d8357fad4d75b735ee9d97fe669`; private `vendor/cockpit-gui-0.1.2.tgz` SHA-256 `bc0eff3c72e8f9997b91c63c15e241c154f525b9374c1baa81703fca2850cc1a`. The npm lock pins its integrity. This is a local package candidate, not a publication or release.

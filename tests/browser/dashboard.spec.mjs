@@ -110,6 +110,40 @@ test('conversation docks to bottom, resizes, restores, and resets without changi
   expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
 });
 
+test('utility tabs persist and side panes swap without executing commands or changing projects', async ({page}) => {
+  await page.setViewportSize({width:1280,height:800});
+  await page.goto('/');
+  const before = await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'));
+  await page.getByRole('button',{name:'Toggle bottom panel'}).click();
+  await page.getByRole('tab',{name:'CLI scratchpad'}).click();
+  await page.getByLabel('Command').fill('/status');
+  await page.getByRole('button',{name:'Preview'}).click();
+  await expect(page.locator('#scratch-output')).toContainText('No terminal connection');
+  await page.getByRole('tab',{name:'Notes'}).click();
+  await page.getByLabel('Saved in this browser').fill('Remember this layout');
+  await page.reload();
+  await expect(page.getByRole('tab',{name:'Notes'})).toHaveAttribute('aria-selected','true');
+  await expect(page.getByLabel('Saved in this browser')).toHaveValue('Remember this layout');
+  await page.getByLabel('Workspace layout').click();
+  await page.getByRole('button',{name:'Swap left and right panes'}).click();
+  await expect(page.locator('#workbench')).toHaveClass(/context-left/);
+  await expect(page.getByRole('separator',{name:'Resize Context panel'})).toBeVisible();
+  await expect(page.getByRole('separator',{name:'Resize Explorer panel'})).toBeVisible();
+  await page.screenshot({path:'docs/screenshots/propro-swapped-1280.png',fullPage:true});
+  await page.reload();
+  await expect(page.locator('#workbench')).toHaveClass(/context-left/);
+  await expect(page.getByRole('tab',{name:'Notes'})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('button',{name:'Toggle left panel'}).click();
+  await expect(page.locator('#context')).toBeHidden();
+  await page.getByRole('button',{name:'Toggle left panel'}).click();
+  await expect(page.locator('#context')).toBeVisible();
+  await page.getByRole('tab',{name:'Problems'}).click();
+  await expect(page.locator('#problem-summary')).toContainText('No project data problems');
+  const violations = await page.evaluate(source => { const script=document.createElement('script'); script.textContent=source; document.head.appendChild(script); return window.axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa']}}).then(x=>x.violations.map(v=>v.id)); }, axe.source);
+  expect(violations).toEqual([]);
+  expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
+});
+
 test('project actions and independent card state survive mode changes and reload', async ({page}) => {
   await page.goto('/');
   await page.getByRole('button',{name:'New project'}).first().click();
