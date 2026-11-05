@@ -48,3 +48,11 @@ Chromium verification: 2 model tests and 6 browser tests passed; the browser sui
 - Firefox viewport and axe checks need a working resize in this Windows Playwright environment.
 - Generic Cockpit GUI collection API requires a second distinct consumer, compatibility review, package/version decision and approval before promotion. This implementation makes no new Cockpit GUI API claim.
 - Rights/provenance review before any public distribution; no merge, release or publication in this work.
+
+## Refined Balanced correction — 2026-11-05
+
+The density-selector slice above was too narrow for the adopted UX direction. It remains historical evidence, but the selector is removed from the current screen. Refined Balanced is now the default visual composition: compact top bar with global search, a four-action activity rail, project explorer, central dashboard with counts and cards, and a visible right Cockpit conversation/search pane. Home returns to the dashboard. The context pane can be hidden and restored.
+
+The composer now performs local project, entry, `#` capability-tag and `@` project-reference search. `/help` and `/status` are informational previews only; there is no CLI execution or AI provider connection. The `+` picker holds selected files locally and lets the user remove them; it does not upload or attach them to any execution request. Web/file search, full command routing, docking, bottom panels, detached windows and customizable themes remain future milestones. Version 1 project data and the packaged Cockpit GUI boundary are unchanged.
+
+Running screenshots are captured at 375×900, 390×844, 768×900, 1280×800, 1440×900 and 1920×900. Chromium browser checks cover the existing project flows, the new navigation/search/composer slice, overflow and automated axe accessibility checks. Human visual approval, screen-reader and task-based usability review remain open.

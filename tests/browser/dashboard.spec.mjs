@@ -8,7 +8,7 @@ test('opening index.html directly loads the styled dashboard and its actions', a
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(pathToFileURL(resolve('index.html')).href);
-  await expect(page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:'Large tiles'})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('group',{name:'View'}).getByRole('button',{name:'Large tiles'})).toHaveAttribute('aria-pressed','true');
   await expect(page.locator('#workbench')).toHaveCSS('display','grid');
   await page.getByRole('button',{name:'New project'}).first().click();
   await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Direct file project');
@@ -17,27 +17,42 @@ test('opening index.html directly loads the styled dashboard and its actions', a
   expect(errors).toEqual([]);
 });
 
-test('Home returns to dashboard and density survives reload without changing project data', async ({page}) => {
+test('refined workspace searches locally, previews commands and keeps project data intact', async ({page}) => {
   await page.goto('/');
-  await expect(page.getByLabel('Workspace density')).toHaveValue('balanced');
+  await expect(page.getByRole('complementary',{name:'Conversation and search'})).toBeVisible();
   await page.getByRole('button',{name:'New project'}).first().click();
-  await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Density sample');
+  await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Research sample');
+  await page.getByRole('dialog',{name:'Create project'}).getByLabel('Research').check();
   await page.getByRole('button',{name:'Create project',exact:true}).click();
-  await page.getByRole('button',{name:'Open Density sample'}).click();
-  await expect(page.getByRole('heading',{name:'Density sample',level:2})).toBeVisible();
+  await page.getByRole('button',{name:'Open Research sample'}).click();
+  await expect(page.getByRole('heading',{name:'Research sample',level:2})).toBeVisible();
   const before = await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'));
-  await page.getByLabel('Workspace density').selectOption('refined');
-  await expect(page.locator('html')).toHaveAttribute('data-density','refined');
-  await expect(page.locator('.project-card').first()).toHaveCSS('border-radius','10px');
-  await page.screenshot({path:'docs/screenshots/propro-refined-1280.png',fullPage:true});
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Search'}).click();
+  await expect(page.getByLabel('Search projects')).toBeFocused();
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Conversation'}).click();
+  await expect(page.getByLabel('Ask or search workspace')).toBeFocused();
+  await page.getByLabel('Ask or search workspace').fill('#Research');
+  await page.getByRole('button',{name:'Search workspace'}).click();
+  await expect(page.locator('#composer-results')).toContainText('1 local result');
+  await page.getByLabel('Ask or search workspace').fill('/status');
+  await page.getByRole('button',{name:'Search workspace'}).click();
+  await expect(page.locator('#composer-results')).toContainText('No CLI connection');
+  await page.locator('#composer-files').setInputFiles({name:'notes.txt',mimeType:'text/plain',buffer:Buffer.from('local context')});
+  await expect(page.getByRole('button',{name:'Remove notes.txt'})).toBeVisible();
+  await page.getByRole('button',{name:'Remove notes.txt'}).click();
+  await expect(page.getByRole('button',{name:'Remove notes.txt'})).toHaveCount(0);
+  await page.getByLabel('Search projects').fill('missing');
+  await expect(page.getByText('No projects match that search')).toBeVisible();
   await page.getByRole('button',{name:'Home'}).click();
   await expect(page.locator('#detail')).toBeEmpty();
   await expect(page.locator('#dashboard-heading')).toBeFocused();
+  await expect(page.getByLabel('Search projects')).toHaveValue('');
+  await page.getByRole('button',{name:'Toggle conversation pane'}).click();
+  await expect(page.getByRole('complementary',{name:'Conversation and search'})).toBeHidden();
+  await page.getByRole('button',{name:'Toggle conversation pane'}).click();
+  await expect(page.getByRole('complementary',{name:'Conversation and search'})).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('Workspace density')).toHaveValue('refined');
   expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
-  await page.getByLabel('Workspace density').selectOption('balanced');
-  await expect(page.locator('html')).toHaveAttribute('data-density','balanced');
 });
 
 test('project actions and independent card state survive mode changes and reload', async ({page}) => {
@@ -51,11 +66,11 @@ test('project actions and independent card state survive mode changes and reload
   await page.getByRole('button',{name:'Create project',exact:true}).click();
   await page.getByRole('button',{name:'Minimize Garden'}).click();
   for (const mode of ['Mini','Grid','List','Large']) {
-    const layoutButton = page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:`${mode} tiles`});
+    const layoutButton = page.getByRole('group',{name:'View'}).getByRole('button',{name:`${mode} tiles`});
     await expect(layoutButton.locator('svg')).toHaveCount(1);
     await layoutButton.click();
     await expect(layoutButton).toHaveAttribute('aria-pressed','true');
-    await expect(layoutButton).toHaveCSS('background-color','rgb(32, 90, 157)');
+    await expect(layoutButton).toHaveCSS('background-color','rgb(67, 89, 169)');
     await expect(page.getByRole('button',{name:'Expand Garden'})).toBeVisible();
     await expect(page.getByRole('button',{name:'Minimize Workshop'})).toBeVisible();
     await expect(page.getByRole('heading',{name:'Workshop',level:2})).toBeVisible();
@@ -66,10 +81,10 @@ test('project actions and independent card state survive mode changes and reload
   await page.getByRole('button',{name:'Add entry'}).click();
   await page.reload();
   await expect(page.getByRole('button',{name:'Expand Garden'})).toBeVisible();
-  await expect(page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:'Large tiles'})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('group',{name:'View'}).getByRole('button',{name:'Large tiles'})).toHaveAttribute('aria-pressed','true');
   await page.getByRole('button',{name:'Open Garden'}).click();
   await page.getByRole('group',{name:'Project sections'}).getByRole('button',{name:'Tasks'}).click();
-  await expect(page.getByText('Plant seeds')).toBeVisible();
+  await expect(page.getByRole('region',{name:'Selected project'}).getByText('Plant seeds')).toBeVisible();
 });
 
 test('existing version 1 data loads and malformed import leaves it intact', async ({page}) => {
@@ -77,7 +92,7 @@ test('existing version 1 data loads and malformed import leaves it intact', asyn
   await page.goto('/');
   await expect(page.getByRole('heading',{name:'Legacy'})).toBeVisible();
   await page.locator('#import').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('{oops')});
-  await expect(page.getByRole('status')).toContainText('Import failed');
+  await expect(page.locator('#message')).toContainText('Import failed');
   await expect(page.getByRole('heading',{name:'Legacy'})).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('propro-project-portal-v1')).projects[0].name)).toBe('Legacy');
 });
@@ -95,8 +110,8 @@ test('valid import requires explicit replacement and cancellation preserves reco
 
 test('responsive screenshots, no overflow, and axe checks', async ({page}) => {
   await mkdir('docs/screenshots',{recursive:true});
-  for (const width of [375,768,1280,1920]) {
-    await page.setViewportSize({width,height:900});
+  for (const {width,height} of [{width:375,height:900},{width:390,height:844},{width:768,height:900},{width:1280,height:800},{width:1440,height:900},{width:1920,height:900}]) {
+    await page.setViewportSize({width,height});
     await page.goto('/');
     await page.evaluate(() => localStorage.setItem('propro-project-portal-v1', JSON.stringify({version:1,projects:[
       {id:'a',name:'Neighborhood garden',capabilities:['Construction','Research'],items:[{id:'t',title:'Site survey'}],resources:[],evidence:[],links:[]},
@@ -104,10 +119,10 @@ test('responsive screenshots, no overflow, and axe checks', async ({page}) => {
       {id:'c',name:'Community science',capabilities:['Research'],items:[],resources:[],evidence:[],links:[]}
     ]})));
     await page.reload();
-    await page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:'Large tiles'}).click();
+    await page.getByRole('group',{name:'View'}).getByRole('button',{name:'Large tiles'}).click();
     await page.screenshot({path:`docs/screenshots/propro-${width}.png`,fullPage:true});
     for (const mode of ['Large','Mini','Grid','List']) {
-      await page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:`${mode} tiles`}).click();
+      await page.getByRole('group',{name:'View'}).getByRole('button',{name:`${mode} tiles`}).click();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `overflow at ${width} in ${mode}`).toBe(true);
     }
     const violations = await page.evaluate(source => { const script=document.createElement('script'); script.textContent=source; document.head.appendChild(script); return window.axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa']}}).then(x=>x.violations.map(v=>({id:v.id, targets:v.nodes.map(n=>({target:n.target,html:n.html,summary:n.failureSummary}))}))); }, axe.source);
