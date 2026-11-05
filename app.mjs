@@ -13,14 +13,16 @@ let prefs = readPrefs(localStorage.getItem(PREF_KEY), data.projects.map(p => p.i
 let filterQuery = '';
 let attachments = [];
 let composerSuggestions = [];
+let workspaceTabs = [{id:'home',kind:'home',title:'Home'}];
+let activeWorkspaceTab = 'home';
 const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [
   {id:'home',label:'Home',glyph:'⌂'}, {id:'projects',label:'Projects',glyph:'▤'},
   {id:'search',label:'Search',glyph:'⌕'}, {id:'conversation',label:'Conversation',glyph:'✦'}
 ], initialActivity:'home', onActivity: id => {
   workbench.activate(id);
-  if (id === 'home') { selected = null; detailTab = 'Overview'; filterQuery = ''; $('global-search').value = ''; render(); $('dashboard-heading').focus(); }
-  if (id === 'projects') (document.querySelector('.nav-project') || document.querySelector('.explorer-head button')).focus();
-  if (id === 'search') $('global-search').focus();
+  if (id === 'home') { detailTab = 'Overview'; filterQuery = ''; $('global-search').value = ''; activateWorkspaceTab('home'); $('dashboard-heading').focus(); }
+  if (id === 'projects') { workbench.setPanelVisible('explorer', true); syncLayoutControls(); activateWorkspaceTab('home'); (document.querySelector('.nav-project') || document.querySelector('.explorer-head button')).focus(); }
+  if (id === 'search') { activateWorkspaceTab('home'); $('global-search').focus(); }
   if (id === 'conversation') { workbench.setPanelVisible('context', true); activateUtilityTab('conversation'); syncLayoutControls(); $('composer-input').focus(); }
 }});
 function syncLayoutControls() {
@@ -101,6 +103,125 @@ swapButton.id = 'swap-side-panes'; swapButton.type = 'button'; swapButton.textCo
 $('reset-layout').before(swapButton);
 swapButton.addEventListener('click', () => { workbench.dockContext(workbench.contextDock() === 'left' ? 'right' : 'left'); syncLayoutControls(); $('layout-menu').open = false; });
 
+// Center tabs represent work items. Side and bottom panes keep their own layout state.
+const center = $('content');
+const dashboardView = document.createElement('div');
+dashboardView.id = 'dashboard-view';
+for (const child of [...center.children]) if (child.id !== 'detail') dashboardView.append(child);
+const workspaceExtra = document.createElement('section');
+workspaceExtra.id = 'workspace-extra'; workspaceExtra.setAttribute('aria-label', 'Open workspace item');
+const editorTabs = document.createElement('div');
+editorTabs.className = 'editor-tabs';
+editorTabs.innerHTML = '<div id="editor-tab-list" role="tablist" aria-label="Open workspace tabs"></div><div class="editor-actions"><button id="open-cli-tab" type="button">Open CLI</button><label class="open-file-button">Open file<input id="open-workspace-file" type="file" accept=".md,.txt,.json,.js,.ts,.css,.html,.pdf,text/plain,text/markdown,application/pdf"></label></div>';
+center.append(editorTabs, dashboardView, $('detail'), workspaceExtra);
+function workspaceTab(id) { return workspaceTabs.find(tab => tab.id === id); }
+function openProjectTab(id) {
+  const project = data.projects.find(item => item.id === id);
+  if (!project) return;
+  const tabId = `project:${id}`;
+  if (!workspaceTab(tabId)) workspaceTabs.push({id:tabId,kind:'project',projectId:id});
+  activateWorkspaceTab(tabId);
+}
+function openCliTab() {
+  if (!workspaceTab('cli')) workspaceTabs.push({id:'cli',kind:'cli',title:'CLI scratchpad'});
+  activateWorkspaceTab('cli');
+}
+function activateWorkspaceTab(id) {
+  const tab = workspaceTab(id) || workspaceTabs[0];
+  activeWorkspaceTab = tab.id;
+  selected = tab.kind === 'project' ? tab.projectId : null;
+  render();
+}
+function closeWorkspaceTab(id) {
+  if (id === 'home') return;
+  const index = workspaceTabs.findIndex(tab => tab.id === id);
+  const tab = workspaceTabs[index];
+  if (!tab) return;
+  if (tab.url) URL.revokeObjectURL(tab.url);
+  workspaceTabs.splice(index, 1);
+  if (activeWorkspaceTab === id) activateWorkspaceTab(workspaceTabs[Math.max(0,index - 1)].id);
+  else renderWorkspaceTabs();
+}
+function renderWorkspaceTabs() {
+  const list = $('editor-tab-list');
+  list.innerHTML = '';
+  for (const tab of workspaceTabs) {
+    const group = document.createElement('div'); group.className = 'editor-tab-item';
+    const button = document.createElement('button');
+    button.type = 'button'; button.setAttribute('role','tab');
+    button.dataset.workspaceTab = tab.id;
+    button.setAttribute('aria-selected',String(tab.id === activeWorkspaceTab));
+    button.setAttribute('aria-controls',tab.kind === 'home' ? 'dashboard-view' : tab.kind === 'project' ? 'detail' : 'workspace-extra');
+    button.tabIndex = tab.id === activeWorkspaceTab ? 0 : -1;
+    button.textContent = tab.kind === 'project' ? (data.projects.find(p => p.id === tab.projectId)?.name || 'Project') : tab.title;
+    group.append(button);
+    if (tab.id !== 'home') {
+      const close = document.createElement('button'); close.type = 'button'; close.className = 'close-editor-tab';
+      close.dataset.closeWorkspaceTab = tab.id; close.setAttribute('aria-label',`Close ${button.textContent} tab`); close.textContent = '×';
+      group.append(close);
+    }
+    list.append(group);
+  }
+  dashboardView.hidden = activeWorkspaceTab !== 'home';
+  $('detail').hidden = workspaceTab(activeWorkspaceTab)?.kind !== 'project';
+  workspaceExtra.hidden = !['cli','file'].includes(workspaceTab(activeWorkspaceTab)?.kind);
+  const active = workspaceTab(activeWorkspaceTab);
+  workspaceExtra.replaceChildren();
+  if (active?.kind === 'cli') {
+    workspaceExtra.innerHTML = '<p class="eyebrow">WORKSPACE / CLI</p><h2>CLI scratchpad</h2><p class="muted">Preview local informational commands. Nothing runs on your computer.</p><form id="workspace-cli-form"><label for="workspace-cli-input">Command</label><div class="scratch-row"><input id="workspace-cli-input" placeholder="/help" autocomplete="off"><button type="submit">Preview</button></div></form><output id="workspace-cli-output" role="status" aria-live="polite"></output>';
+    $('workspace-cli-input').value = active.commandDraft || '';
+    $('workspace-cli-output').textContent = active.commandOutput || '';
+  } else if (active?.kind === 'file') {
+    const heading = document.createElement('h2'); heading.textContent = active.title;
+    const note = document.createElement('p'); note.className = 'muted'; note.textContent = 'Local read-only preview · This file stays in this browser tab.';
+    workspaceExtra.append(heading,note);
+    if (active.fileType === 'pdf') {
+      const viewer = document.createElement('iframe'); viewer.title = `PDF preview: ${active.title}`; viewer.src = active.url; viewer.className = 'workspace-pdf'; workspaceExtra.append(viewer);
+    } else {
+      const code = document.createElement('pre'); code.className = 'workspace-text'; code.textContent = active.content; workspaceExtra.append(code);
+    }
+  }
+}
+function commandPreview(command) {
+  return command === '/help' ? 'Available previews: /help and /status. No commands are executed.' : command === '/status' ? `${data.projects.length} local projects. No terminal connection is active.` : command ? `${command} is not connected. Nothing was executed.` : 'Enter /help or /status.';
+}
+$('editor-tab-list').addEventListener('click', event => {
+  const close = event.target.closest('[data-close-workspace-tab]');
+  if (close) { closeWorkspaceTab(close.dataset.closeWorkspaceTab); return; }
+  const tab = event.target.closest('[data-workspace-tab]');
+  if (tab) activateWorkspaceTab(tab.dataset.workspaceTab);
+});
+$('editor-tab-list').addEventListener('keydown', event => {
+  const tabs = [...$('editor-tab-list').querySelectorAll('[role="tab"]')];
+  const index = tabs.indexOf(document.activeElement);
+  if (index < 0 || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+  event.preventDefault();
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+  activateWorkspaceTab(tabs[next].dataset.workspaceTab);
+  $('editor-tab-list').querySelectorAll('[role="tab"]')[next].focus();
+});
+$('open-cli-tab').addEventListener('click', openCliTab);
+$('open-workspace-file').addEventListener('change', async event => {
+  const file = event.target.files[0]; event.target.value = '';
+  if (!file) return;
+  const pdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (file.size > (pdf ? 10_000_000 : 2_000_000)) { notice('This file is too large for a local preview.'); return; }
+  if (!pdf && !/\.(md|txt|json|js|ts|css|html)$/i.test(file.name)) { notice('Choose a text, Markdown, code or PDF file.'); return; }
+  try {
+    const tab = {id:`file:${uid()}`,kind:'file',title:file.name,fileType:pdf ? 'pdf' : 'text'};
+    if (pdf) tab.url = URL.createObjectURL(file); else tab.content = await file.text();
+    workspaceTabs.push(tab); activateWorkspaceTab(tab.id);
+  } catch { notice('Could not open that local file.'); }
+});
+workspaceExtra.addEventListener('submit', event => {
+  if (event.target.id !== 'workspace-cli-form') return;
+  event.preventDefault();
+  const output = commandPreview($('workspace-cli-input').value.trim());
+  workspaceTab('cli').commandOutput = output;
+  $('workspace-cli-output').textContent = output;
+});
+workspaceExtra.addEventListener('input', event => { if (event.target.id === 'workspace-cli-input') workspaceTab('cli').commandDraft = event.target.value; });
+
 function matchesProject(project, query) {
   const text = [project.name, ...project.capabilities, ...['items','resources','evidence','links'].flatMap(key => project[key].map(item => item.title))].join(' ').toLowerCase();
   return text.includes(query);
@@ -139,7 +260,7 @@ function notice(message) { $('message').textContent = message; }
 function saveData() { if (loadError) { notice('Saved data could not be read. Import a valid backup before changing projects.'); return; } try { localStorage.setItem(DATA_KEY, JSON.stringify(data)); render(); notice('Saved locally.'); } catch { notice('Could not save. Export a backup and check browser storage.'); } }
 function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { notice('View preference could not be saved.'); } }
 function current() { return data.projects.find(p => p.id === selected); }
-function select(id) { selected = id; detailTab = 'Overview'; render(); $('detail-heading')?.focus(); }
+function select(id) { detailTab = 'Overview'; openProjectTab(id); $('detail-heading')?.focus(); }
 function render() {
   const p = current();
   const visibleProjects = filterQuery ? data.projects.filter(x => matchesProject(x, filterQuery)) : data.projects;
@@ -159,6 +280,7 @@ function render() {
   const recent = visibleProjects.flatMap(project => ['items','resources','evidence','links'].flatMap(key => project[key].slice(-2).map(item => ({project, item, type:{items:'Task',resources:'Resource',evidence:'Evidence',links:'Link'}[key]})))).slice(0,4);
   $('recent-work').innerHTML = recent.length ? `<div class="section-head"><h3>Recent work</h3><span>${recent.length} entries</span></div><ul>${recent.map(x => `<li><span class="recent-kind">${x.type}</span><span>${esc(x.item.title)}</span><button type="button" data-select="${esc(x.project.id)}">${esc(x.project.name)}</button></li>`).join('')}</ul>` : '';
   $('detail').innerHTML = p ? detailHTML(p) : '';
+  renderWorkspaceTabs();
 }
 function detailHTML(p) {
   const tabs = ['Overview','Tasks','Resources','Evidence','Links',...p.capabilities];
@@ -172,7 +294,7 @@ function detailHTML(p) {
   return `<section class="detail-panel" aria-label="Selected project"><div class="detail-head"><div><p class="eyebrow">Selected project</p><h2 id="detail-heading" tabindex="-1">${esc(p.name)}</h2></div><form id="rename-form" class="rename-form"><label>Rename project<input name="name" maxlength="200" required value="${esc(p.name)}"></label><button type="submit">Rename</button></form></div><div class="detail-tabs" role="group" aria-label="Project sections">${tabs.map(t => `<button type="button" data-tab="${esc(t)}" aria-pressed="${t === detailTab}">${esc(t)}</button>`).join('')}</div><div class="detail-body">${body}</div></section>`;
 }
 $('create-caps').innerHTML = CAPS.map(c => `<label><input type="checkbox" name="cap" value="${c}">${c}</label>`).join('');
-$('global-search').addEventListener('input', e => { filterQuery = e.target.value.trim().toLowerCase(); render(); });
+$('global-search').addEventListener('input', e => { filterQuery = e.target.value.trim().toLowerCase(); if (activeWorkspaceTab !== 'home') activateWorkspaceTab('home'); else render(); });
 document.addEventListener('keydown', e => { if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) { e.preventDefault(); $('global-search').focus(); } });
 $('toggle-explorer').addEventListener('click', () => { const panel = workbench.contextDock() === 'left' ? 'context' : 'explorer'; workbench.setPanelVisible(panel, !workbench.panelVisible(panel)); syncLayoutControls(); });
 for (const position of ['right','bottom']) $('dock-' + position).addEventListener('click', () => {
@@ -234,7 +356,7 @@ document.addEventListener('submit', e => {
   const form = e.target;
   if (!['project-form','rename-form','caps-form','entry-form'].includes(form.id)) return;
   e.preventDefault();
-  if (form.id === 'project-form') { const name = form.elements.name.value.trim(); if (!name) return; const p = newProject(uid(), name.slice(0,200), [...form.querySelectorAll('input[name="cap"]:checked')].map(x => x.value)); data.projects.push(p); selected = p.id; detailTab = 'Overview'; saveData(); form.reset(); $('project-dialog').close(); notice('Project created and saved locally.'); $('detail-heading')?.focus(); }
+  if (form.id === 'project-form') { const name = form.elements.name.value.trim(); if (!name) return; const p = newProject(uid(), name.slice(0,200), [...form.querySelectorAll('input[name="cap"]:checked')].map(x => x.value)); data.projects.push(p); detailTab = 'Overview'; openProjectTab(p.id); saveData(); form.reset(); $('project-dialog').close(); notice('Project created and saved locally.'); $('detail-heading')?.focus(); }
   if (form.id === 'rename-form') { const name = form.elements.name.value.trim(); if (name && current()) { current().name = name.slice(0,200); saveData(); notice('Project renamed.'); } }
   if (form.id === 'caps-form' && current()) { current().capabilities = [...form.querySelectorAll('input:checked')].map(x => x.value); saveData(); }
   if (form.id === 'entry-form' && current()) { const key = {Tasks:'items',Resources:'resources',Evidence:'evidence',Links:'links'}[detailTab], title = form.elements.title.value.trim(); if (key && title) { current()[key].push({id:uid(),title}); saveData(); } }
@@ -244,6 +366,6 @@ $('export').onclick = () => { const blob = new Blob([JSON.stringify(data,null,2)
 $('import').onchange = async e => { const file = e.target.files[0]; e.target.value = ''; if (!file) return; try { if (file.size > 5_000_000) throw Error('File too large'); pendingImport = validateData(JSON.parse(await file.text())); $('import-dialog').showModal(); } catch (error) { pendingImport = null; notice('Import failed: ' + error.message); } };
 $('cancel-import').onclick = () => { pendingImport = null; $('import-dialog').close(); };
 $('import-dialog').addEventListener('close', () => { if (!$('import-dialog').open) pendingImport = null; });
-$('confirm-import').onclick = () => { if (!pendingImport) return; data = pendingImport; pendingImport = null; loadError = false; $('new-project').disabled = false; selected = null; detailTab = 'Overview'; prefs = readPrefs(JSON.stringify(prefs), data.projects.map(p => p.id)); saveData(); savePrefs(); $('import-dialog').close(); notice('Imported project backup.'); };
+$('confirm-import').onclick = () => { if (!pendingImport) return; data = pendingImport; pendingImport = null; loadError = false; $('new-project').disabled = false; for (const tab of workspaceTabs) if (tab.url) URL.revokeObjectURL(tab.url); workspaceTabs = [workspaceTabs[0]]; activeWorkspaceTab = 'home'; selected = null; detailTab = 'Overview'; prefs = readPrefs(JSON.stringify(prefs), data.projects.map(p => p.id)); saveData(); savePrefs(); $('import-dialog').close(); notice('Imported project backup.'); };
 render();
 if (loadError) { $('new-project').disabled = true; notice('Saved data could not be read. Import a valid backup; existing browser data was left untouched.'); }

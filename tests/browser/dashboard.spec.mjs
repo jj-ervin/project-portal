@@ -24,7 +24,6 @@ test('refined workspace searches locally, previews commands and keeps project da
   await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Research sample');
   await page.getByRole('dialog',{name:'Create project'}).getByLabel('Research').check();
   await page.getByRole('button',{name:'Create project',exact:true}).click();
-  await page.getByRole('button',{name:'Open Research sample'}).click();
   await expect(page.getByRole('heading',{name:'Research sample',level:2})).toBeVisible();
   const before = await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'));
   await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Search'}).click();
@@ -115,7 +114,7 @@ test('utility tabs persist and side panes swap without executing commands or cha
   await page.goto('/');
   const before = await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'));
   await page.getByRole('button',{name:'Toggle bottom panel'}).click();
-  await page.getByRole('tab',{name:'CLI scratchpad'}).click();
+  await page.locator('.utility-tabs').getByRole('tab',{name:'CLI scratchpad'}).click();
   await page.getByLabel('Command').fill('/status');
   await page.getByRole('button',{name:'Preview'}).click();
   await expect(page.locator('#scratch-output')).toContainText('No terminal connection');
@@ -144,6 +143,45 @@ test('utility tabs persist and side panes swap without executing commands or cha
   expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
 });
 
+test('center workspace opens project, CLI and local document tabs independently of panes', async ({page}) => {
+  await page.setViewportSize({width:1280,height:800});
+  await page.goto('/');
+  await page.getByRole('button',{name:'New project'}).first().click();
+  await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Studio');
+  await page.getByRole('button',{name:'Create project',exact:true}).click();
+  await expect(page.getByRole('tab',{name:'Studio'})).toHaveAttribute('aria-selected','true');
+  await expect(page.locator('#dashboard-view')).toBeHidden();
+  const before = await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'));
+  await page.getByRole('button',{name:'Open CLI'}).click();
+  await expect(page.getByRole('heading',{name:'CLI scratchpad'})).toBeVisible();
+  await page.locator('#workspace-cli-input').fill('/status');
+  await page.locator('#workspace-cli-form').getByRole('button',{name:'Preview'}).click();
+  await expect(page.locator('#workspace-cli-output')).toContainText('No terminal connection');
+  await page.getByRole('tab',{name:'Studio'}).click();
+  await page.locator('#editor-tab-list').getByRole('tab',{name:'CLI scratchpad'}).click();
+  await expect(page.locator('#workspace-cli-input')).toHaveValue('/status');
+  await expect(page.locator('#workspace-cli-output')).toContainText('No terminal connection');
+  await page.locator('#open-workspace-file').setInputFiles({name:'readme.md',mimeType:'text/markdown',buffer:Buffer.from('# Local note\n<script>window.bad=true</script>')});
+  await expect(page.getByRole('tab',{name:'readme.md'})).toHaveAttribute('aria-selected','true');
+  await expect(page.locator('.workspace-text')).toContainText('<script>window.bad=true</script>');
+  expect(await page.evaluate(() => window.bad)).toBeUndefined();
+  await page.screenshot({path:'docs/screenshots/propro-editor-tabs-1280.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(page.locator('#editor-tab-list').getByRole('tab',{name:'readme.md'})).toBeVisible();
+  await page.screenshot({path:'docs/screenshots/propro-editor-tabs-390.png',fullPage:true});
+  await page.getByRole('button',{name:'Close readme.md tab'}).click();
+  await expect(page.getByRole('tab',{name:'readme.md'})).toHaveCount(0);
+  await page.getByRole('tab',{name:'Home'}).click();
+  await expect(page.getByRole('heading',{name:'Your workspace'})).toBeVisible();
+  await expect(page.getByRole('tab',{name:'Studio'})).toBeVisible();
+  await page.getByRole('button',{name:'Toggle primary sidebar'}).click();
+  await expect(page.locator('#explorer')).toBeHidden();
+  await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Projects'}).click();
+  await expect(page.locator('#explorer')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
+});
+
 test('project actions and independent card state survive mode changes and reload', async ({page}) => {
   await page.goto('/');
   await page.getByRole('button',{name:'New project'}).first().click();
@@ -153,6 +191,7 @@ test('project actions and independent card state survive mode changes and reload
   await page.getByRole('button',{name:'New project'}).first().click();
   await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Workshop');
   await page.getByRole('button',{name:'Create project',exact:true}).click();
+  await page.getByRole('tab',{name:'Home'}).click();
   await page.getByRole('button',{name:'Minimize Garden'}).click();
   for (const mode of ['Mini','Grid','List','Large']) {
     const layoutButton = page.getByRole('group',{name:'View'}).getByRole('button',{name:`${mode} tiles`});
@@ -162,7 +201,7 @@ test('project actions and independent card state survive mode changes and reload
     await expect(layoutButton).toHaveCSS('background-color','rgb(67, 89, 169)');
     await expect(page.getByRole('button',{name:'Expand Garden'})).toBeVisible();
     await expect(page.getByRole('button',{name:'Minimize Workshop'})).toBeVisible();
-    await expect(page.getByRole('heading',{name:'Workshop',level:2})).toBeVisible();
+    await expect(page.getByRole('tab',{name:'Workshop'})).toBeVisible();
   }
   await page.getByRole('button',{name:'Open Garden'}).click();
   await page.getByRole('group',{name:'Project sections'}).getByRole('button',{name:'Tasks'}).click();
