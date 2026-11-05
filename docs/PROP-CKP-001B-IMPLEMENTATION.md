@@ -32,6 +32,8 @@ The remote documentation branches `docs/prop-ckp-001-adaptive-workspace` (`d551d
 
 Follow-up presentation change: the four text layout tabs were replaced with original inline SVG icon buttons inspired by the owner's references. The selector keeps the same saved modes and exposes accessible labels, hover titles, focus outlines and `aria-pressed` state. The screenshots above reflect the icon selector.
 
+Owner feedback on scale led to a compact spacing pass on 2026-11-05: the header, dashboard gutters and card padding were reduced, and the workbench now fits its content instead of filling a tall empty desktop region. The four requested viewport screenshots and direct Edge file screenshot were refreshed. Card content and minimum touch target sizes remain legible.
+
 ## Open gates
 
 - Human owner acceptance of the actual running UI and task-based usability review.
