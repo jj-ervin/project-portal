@@ -13,7 +13,11 @@ test('project actions and independent card state survive mode changes and reload
   await page.getByRole('button',{name:'Create project',exact:true}).click();
   await page.getByRole('button',{name:'Minimize Garden'}).click();
   for (const mode of ['Mini','Grid','List','Large']) {
-    await page.getByRole('group',{name:'Project view'}).getByRole('button',{name:mode}).click();
+    const layoutButton = page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:`${mode} tiles`});
+    await expect(layoutButton.locator('svg')).toHaveCount(1);
+    await layoutButton.click();
+    await expect(layoutButton).toHaveAttribute('aria-pressed','true');
+    await expect(layoutButton).toHaveCSS('background-color','rgb(32, 90, 157)');
     await expect(page.getByRole('button',{name:'Expand Garden'})).toBeVisible();
     await expect(page.getByRole('button',{name:'Minimize Workshop'})).toBeVisible();
     await expect(page.getByRole('heading',{name:'Workshop',level:2})).toBeVisible();
@@ -24,7 +28,7 @@ test('project actions and independent card state survive mode changes and reload
   await page.getByRole('button',{name:'Add entry'}).click();
   await page.reload();
   await expect(page.getByRole('button',{name:'Expand Garden'})).toBeVisible();
-  await expect(page.getByRole('group',{name:'Project view'}).getByRole('button',{name:'Large'})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:'Large tiles'})).toHaveAttribute('aria-pressed','true');
   await page.getByRole('button',{name:'Open Garden'}).click();
   await page.getByRole('group',{name:'Project sections'}).getByRole('button',{name:'Tasks'}).click();
   await expect(page.getByText('Plant seeds')).toBeVisible();
@@ -62,10 +66,10 @@ test('responsive screenshots, no overflow, and axe checks', async ({page}) => {
       {id:'c',name:'Community science',capabilities:['Research'],items:[],resources:[],evidence:[],links:[]}
     ]})));
     await page.reload();
-    await page.getByRole('group',{name:'Project view'}).getByRole('button',{name:'Large'}).click();
+    await page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:'Large tiles'}).click();
     await page.screenshot({path:`docs/screenshots/propro-${width}.png`,fullPage:true});
     for (const mode of ['Large','Mini','Grid','List']) {
-      await page.getByRole('group',{name:'Project view'}).getByRole('button',{name:mode}).click();
+      await page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:`${mode} tiles`}).click();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `overflow at ${width} in ${mode}`).toBe(true);
     }
     const violations = await page.evaluate(source => { const script=document.createElement('script'); script.textContent=source; document.head.appendChild(script); return window.axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa']}}).then(x=>x.violations.map(v=>({id:v.id, targets:v.nodes.map(n=>({target:n.target,html:n.html,summary:n.failureSummary}))}))); }, axe.source);

@@ -29,6 +29,8 @@ The remote documentation branches `docs/prop-ckp-001-adaptive-workspace` (`d551d
 - Portable Studio: 66 unit passed, 3 platform skips; 21 browser passed on its existing workbench consumer.
 - Captured screenshots: `docs/screenshots/propro-{375,768,1280,1920}.png`. Human visual inspection found no clipping or overlap at these widths. The 375px project navigation scrolls horizontally by design.
 
+Follow-up presentation change: the four text layout tabs were replaced with original inline SVG icon buttons inspired by the owner's references. The selector keeps the same saved modes and exposes accessible labels, hover titles, focus outlines and `aria-pressed` state. The screenshots above reflect the icon selector.
+
 ## Open gates
 
 - Human owner acceptance of the actual running UI and task-based usability review.
