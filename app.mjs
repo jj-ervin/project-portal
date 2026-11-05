@@ -19,7 +19,16 @@ let lastWorkTab = null;
 const HOME_PINS_KEY = 'propro-home-pins-v1';
 let homePins = [];
 try { const saved = JSON.parse(localStorage.getItem(HOME_PINS_KEY) || '[]'); if (Array.isArray(saved)) homePins = [...new Set(saved.filter(key => typeof key === 'string' && key.length < 240))].slice(0,30); } catch {}
-const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [
+const bottomPanel = document.createElement('section');
+bottomPanel.id = 'bottom-panel'; bottomPanel.className = 'bottom-panel';
+bottomPanel.setAttribute('role','region'); bottomPanel.setAttribute('aria-label','Bottom tools');
+$('workbench').append(bottomPanel);
+let sharedBottomSaved = false, previousBottomState = null;
+try {
+  sharedBottomSaved = Object.hasOwn(JSON.parse(localStorage.getItem('propro-workbench-widths-v1') || '{}'), 'bottomVisible');
+  previousBottomState = JSON.parse(localStorage.getItem('propro-bottom-pane-v1') || 'null');
+} catch {}
+const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), bottom: bottomPanel, storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [
   {id:'home',label:'Home',glyph:'⌂'}, {id:'workspace',label:'Workspace',glyph:'▣'}, {id:'projects',label:'Projects',glyph:'▤'},
   {id:'search',label:'Search',glyph:'⌕'}, {id:'conversation',label:'Conversation',glyph:'✦'}
 ], initialActivity:'home', onActivity: id => {
@@ -30,53 +39,10 @@ const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), e
   if (id === 'search') { activateWorkspaceTab('home'); $('global-search').focus(); }
   if (id === 'conversation') { workbench.setPanelVisible('context', true); syncLayoutControls(); $('composer-input').focus(); }
 }});
-const legacyBottomDock = workbench.contextDock() === 'bottom';
-if (legacyBottomDock) workbench.dockContext('right');
-const bottomStateKey = 'propro-bottom-pane-v1';
-let bottomVisible = legacyBottomDock;
-let bottomHeight = 240;
-try {
-  const saved = JSON.parse(localStorage.getItem(bottomStateKey) || '{}');
-  if (typeof saved.visible === 'boolean') bottomVisible = saved.visible;
-  if (Number.isFinite(saved.height)) bottomHeight = Math.max(160, Math.min(480, saved.height));
-} catch {}
-function saveBottomState() { try { localStorage.setItem(bottomStateKey, JSON.stringify({visible:bottomVisible,height:bottomHeight})); } catch {} }
-const bottomGrip = document.createElement('div');
-bottomGrip.id = 'bottom-resize'; bottomGrip.className = 'bottom-resize'; bottomGrip.tabIndex = 0;
-bottomGrip.setAttribute('role','separator'); bottomGrip.setAttribute('aria-label','Resize bottom panel');
-bottomGrip.setAttribute('aria-orientation','horizontal'); bottomGrip.setAttribute('aria-valuemin','160'); bottomGrip.setAttribute('aria-valuemax','480');
-const bottomPanel = document.createElement('section');
-bottomPanel.id = 'bottom-panel'; bottomPanel.className = 'bottom-panel';
-bottomPanel.setAttribute('role','region'); bottomPanel.setAttribute('aria-label','Bottom tools');
-$('workbench').append(bottomGrip, bottomPanel);
-function setBottomHeight(height) {
-  bottomHeight = Math.max(160, Math.min(480, Math.round(height)));
-  $('workbench').style.setProperty('--propro-bottom-height', `${bottomHeight}px`);
-  bottomGrip.setAttribute('aria-valuenow', String(bottomHeight));
-  saveBottomState();
+if (!sharedBottomSaved && previousBottomState && typeof previousBottomState === 'object') {
+  if (Number.isFinite(previousBottomState.height)) workbench.setBottomHeight(previousBottomState.height);
+  if (typeof previousBottomState.visible === 'boolean') workbench.setPanelVisible('bottom', previousBottomState.visible);
 }
-function setBottomVisible(visible) {
-  bottomVisible = visible;
-  bottomGrip.hidden = !visible; bottomPanel.hidden = !visible;
-  $('workbench').classList.toggle('has-bottom', visible);
-  saveBottomState(); syncLayoutControls();
-}
-setBottomHeight(bottomHeight);
-setBottomVisible(bottomVisible);
-bottomGrip.addEventListener('keydown', event => {
-  if (!['ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
-  event.preventDefault();
-  setBottomHeight(event.key === 'Home' ? 160 : event.key === 'End' ? 480 : bottomHeight + (event.key === 'ArrowUp' ? 16 : -16));
-});
-bottomGrip.addEventListener('pointerdown', event => {
-  if (event.button !== 0) return;
-  event.preventDefault();
-  const startY = event.clientY, startHeight = bottomHeight;
-  bottomGrip.setPointerCapture(event.pointerId);
-  const move = e => setBottomHeight(startHeight + startY - e.clientY);
-  const stop = () => { bottomGrip.removeEventListener('pointermove', move); bottomGrip.removeEventListener('pointerup', stop); bottomGrip.removeEventListener('pointercancel', stop); };
-  bottomGrip.addEventListener('pointermove', move); bottomGrip.addEventListener('pointerup', stop); bottomGrip.addEventListener('pointercancel', stop);
-});
 function syncLayoutControls() {
   const explorerVisible = workbench.panelVisible('explorer');
   const contextVisible = workbench.panelVisible('context');
@@ -89,7 +55,7 @@ function syncLayoutControls() {
   $('dock-right').setAttribute('aria-controls', dock === 'left' ? 'explorer' : 'context');
   $('dock-right').setAttribute('aria-pressed', String(dock === 'left' ? explorerVisible : contextVisible && dock === 'right'));
   $('dock-bottom').setAttribute('aria-controls', 'bottom-panel');
-  $('dock-bottom').setAttribute('aria-pressed', String(bottomVisible));
+  $('dock-bottom').setAttribute('aria-pressed', String(workbench.panelVisible('bottom')));
 }
 syncLayoutControls();
 const utilityTabs = ['terminal', 'problems', 'notes'];
@@ -437,8 +403,8 @@ $('dock-right').addEventListener('click', () => {
   else workbench.setPanelVisible('context', true);
   syncLayoutControls();
 });
-$('dock-bottom').addEventListener('click', () => setBottomVisible(!bottomVisible));
-$('reset-layout').addEventListener('click', () => { workbench.resetLayout(); setBottomHeight(240); setBottomVisible(false); syncLayoutControls(); notice('Default layout restored.'); });
+$('dock-bottom').addEventListener('click', () => { workbench.setPanelVisible('bottom', !workbench.panelVisible('bottom')); syncLayoutControls(); });
+$('reset-layout').addEventListener('click', () => { workbench.resetLayout(); syncLayoutControls(); notice('Default layout restored.'); });
 $('composer-files').addEventListener('change', e => { attachments.push(...e.target.files); e.target.value = ''; renderAttachments(); showComposerResult(`${attachments.length} attachment${attachments.length === 1 ? '' : 's'} selected locally. No files have been uploaded.`); });
 $('composer-input').addEventListener('input', renderComposerSuggestions);
 $('composer-input').addEventListener('keydown', e => {

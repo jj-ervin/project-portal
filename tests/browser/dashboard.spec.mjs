@@ -82,13 +82,13 @@ test('bottom tools open independently of conversation, resize, restore, and rese
   await expect(separator).toHaveAttribute('aria-orientation','horizontal');
   await separator.focus();
   await separator.press('ArrowUp');
-  await expect(page.locator('#workbench')).toHaveCSS('--propro-bottom-height','256px');
+  await expect(page.locator('#workbench')).toHaveCSS('--cockpit-bottom-height','256px');
   const grip = await separator.boundingBox();
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
   await page.mouse.down();
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2 - 30);
   await page.mouse.up();
-  await expect(page.locator('#workbench')).toHaveCSS('--propro-bottom-height','286px');
+  await expect(page.locator('#workbench')).toHaveCSS('--cockpit-bottom-height','286px');
   await page.screenshot({path:'docs/screenshots/propro-bottom-tools-1280.png',fullPage:true});
   await page.getByRole('button',{name:'Toggle right panel'}).click();
   await expect(page.locator('#context')).toBeHidden();
@@ -97,6 +97,12 @@ test('bottom tools open independently of conversation, resize, restore, and rese
   await page.setViewportSize({width:390,height:844});
   await expect(page.locator('#context')).toBeVisible();
   await expect(page.locator('#bottom-panel')).toBeVisible();
+  for (const id of ['content','context','bottom-panel']) {
+    const box = await page.locator('#' + id).boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(47);
+    expect(box.width).toBeGreaterThan(280);
+    expect(box.x + box.width).toBeLessThanOrEqual(391);
+  }
   await page.screenshot({path:'docs/screenshots/propro-bottom-tools-390.png',fullPage:true});
   for (const id of ['toggle-explorer','dock-bottom','dock-right']) {
     const button = page.locator('#' + id);
@@ -110,7 +116,7 @@ test('bottom tools open independently of conversation, resize, restore, and rese
   await page.reload();
   await expect(page.locator('#bottom-panel')).toBeVisible();
   await expect(page.locator('#context')).toBeVisible();
-  await expect(page.locator('#workbench')).toHaveCSS('--propro-bottom-height','286px');
+  await expect(page.locator('#workbench')).toHaveCSS('--cockpit-bottom-height','286px');
   await page.getByRole('button',{name:'Toggle primary sidebar'}).click();
   await expect(page.locator('#explorer')).toBeHidden();
   await page.getByRole('button',{name:'Toggle bottom panel'}).click();
@@ -126,6 +132,20 @@ test('bottom tools open independently of conversation, resize, restore, and rese
   await expect(page.locator('#context')).toBeVisible();
   await expect(page.locator('#explorer')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
+});
+
+test('previous bottom pane preferences migrate into the shared workbench slot', async ({page}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('propro-workbench-widths-v1', JSON.stringify({contextDock:'bottom',contextVisible:true}));
+    localStorage.setItem('propro-bottom-pane-v1', JSON.stringify({visible:true,height:310}));
+  });
+  await page.goto('/');
+  await expect(page.locator('#context')).toBeVisible();
+  await expect(page.locator('#bottom-panel')).toBeVisible();
+  await expect(page.locator('#workbench')).not.toHaveClass(/context-bottom/);
+  await expect(page.locator('#workbench')).toHaveCSS('--cockpit-bottom-height','310px');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('propro-workbench-widths-v1')));
+  expect(saved).toMatchObject({contextDock:'right',bottomVisible:true,bottomHeight:310});
 });
 
 test('utility tabs persist and side panes swap without executing commands or changing projects', async ({page}) => {
