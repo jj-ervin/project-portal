@@ -18,16 +18,17 @@ The remote documentation branches `docs/prop-ckp-001-adaptive-workspace` (`d551d
 
 - Cockpit GUI source: `jj-ervin/cockpit-gui` `feature/ckp-gui-007-workbench` at `3cfc308f75884eabcb5dc5c092cbf2bb00449f81`.
 - Packed private `@cockpit/gui@0.1.0` artifact: `vendor/cockpit-gui-0.1.0.tgz`, SHA-256 `34ee4ca3ce17015dee1d3db896da38c2ac632b08dc1c4cdde154f95ffdf44124`. `package-lock.json` pins npm integrity. The artifact includes the package's MIT license and public workbench/CSS exports.
-- `npm ci` installs from this local artifact; `server.mjs` exposes only the two Cockpit assets required by the browser. No sibling checkout is needed at runtime.
+- `npm ci` installs from this local artifact. `index.html` loads its assets with relative paths, so opening the file directly and using `npm start` both work after installation. `server.mjs` exposes only the assets required by the browser. No sibling checkout is needed at runtime. Browser storage is separate for the file and localhost origins; export/import is needed to transfer projects.
 
 ## Verification
 
-- ProPro model: 2 passed. Browser: 4 passed in Chromium and 4 passed in WebKit, including version 1 data compatibility, valid and malformed import handling, selection and card state across modes/reload, 375/768/1280/1920px overflow checks in every mode, and automated axe WCAG 2.2 AA rule checks.
+- ProPro model: 2 passed. Browser: 5 passed in Chromium and 5 passed in WebKit, including direct `file://` opening, version 1 data compatibility, valid and malformed import handling, selection and card state across modes/reload, 375/768/1280/1920px overflow checks in every mode, and automated axe WCAG 2.2 AA rule checks. Microsoft Edge also loaded the direct file with the workbench grid, four icons and no page errors.
 - Firefox: 3 interaction/import tests passed. The combined viewport/screenshot/axe test timed out at `page.setViewportSize` before loading the app, including on a 90-second retry. Firefox visual and axe results are unverified.
 - Cockpit GUI: 12 unit, 1 package, 11 browser passed on the inspected source branch.
 - Cockpit Tab: 2 unit passed, though it is not a runtime dependency.
 - Portable Studio: 66 unit passed, 3 platform skips; 21 browser passed on its existing workbench consumer.
 - Captured screenshots: `docs/screenshots/propro-{375,768,1280,1920}.png`. Human visual inspection found no clipping or overlap at these widths. The 375px project navigation scrolls horizontally by design.
+- Direct Edge file-opening screenshot: `docs/screenshots/propro-edge-file.png` (1280px, empty state).
 
 Follow-up presentation change: the four text layout tabs were replaced with original inline SVG icon buttons inspired by the owner's references. The selector keeps the same saved modes and exposes accessible labels, hover titles, focus outlines and `aria-pressed` state. The screenshots above reflect the icon selector.
 

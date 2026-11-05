@@ -1,6 +1,21 @@
 import {test, expect} from '@playwright/test';
 import axe from 'axe-core';
 import {mkdir} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+
+test('opening index.html directly loads the styled dashboard and its actions', async ({page}) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(pathToFileURL(resolve('index.html')).href);
+  await expect(page.getByRole('group',{name:'Tile layout'}).getByRole('button',{name:'Large tiles'})).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#workbench')).toHaveCSS('display','grid');
+  await page.getByRole('button',{name:'New project'}).first().click();
+  await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Direct file project');
+  await page.getByRole('button',{name:'Create project',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Direct file project'}).first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
 
 test('project actions and independent card state survive mode changes and reload', async ({page}) => {
   await page.goto('/');

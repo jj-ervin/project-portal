@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {emptyData, newProject, validateData, readPrefs} from '../model.mjs';
+import '../model.mjs';
+const {emptyData, newProject, validateData, readPrefs} = globalThis.ProProModel;
 test('version 1 projects remain valid and preferences stay separate', () => {
   const p = newProject('p1','Research and renovation',['Research','Construction']);
   p.items.push({id:'i1',title:'Visit site'});

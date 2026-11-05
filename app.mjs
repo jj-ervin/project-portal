@@ -1,4 +1,6 @@
-import {DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, validateData, readPrefs} from './model.mjs';
+'use strict';
+// Classic script loading also supports opening index.html directly from disk.
+const {DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, validateData, readPrefs} = globalThis.ProProModel;
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

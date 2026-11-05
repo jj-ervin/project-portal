@@ -1,10 +1,13 @@
-export const DATA_KEY = 'propro-project-portal-v1';
-export const PREF_KEY = 'propro-dashboard-prefs-v1';
-export const CAPS = ['Construction', 'Research', 'Freelance', 'Development', 'Creative', 'Business'];
-export const MODES = ['large', 'mini', 'grid', 'list'];
-export const emptyData = () => ({version: 1, projects: []});
-export const newProject = (id, name, capabilities = []) => ({id, name, capabilities, items: [], resources: [], evidence: [], links: []});
-export function validateData(value) {
+(function (root) {
+'use strict';
+// The same model is used by the local file page and the Node test suite.
+const DATA_KEY = 'propro-project-portal-v1';
+const PREF_KEY = 'propro-dashboard-prefs-v1';
+const CAPS = ['Construction', 'Research', 'Freelance', 'Development', 'Creative', 'Business'];
+const MODES = ['large', 'mini', 'grid', 'list'];
+const emptyData = () => ({version: 1, projects: []});
+const newProject = (id, name, capabilities = []) => ({id, name, capabilities, items: [], resources: [], evidence: [], links: []});
+function validateData(value) {
   if (!value || value.version !== 1 || !Array.isArray(value.projects) || value.projects.length > 500) throw Error('Unsupported project file');
   const ids = new Set();
   for (const p of value.projects) {
@@ -16,8 +19,10 @@ export function validateData(value) {
   }
   return value;
 }
-export function readPrefs(raw, ids = []) {
+function readPrefs(raw, ids = []) {
   let p; try { p = JSON.parse(raw || '{}') || {}; } catch { p = {}; }
   const valid = new Set(ids);
   return {mode: MODES.includes(p.mode) ? p.mode : 'large', minimized: Array.isArray(p.minimized) ? [...new Set(p.minimized.filter(id => valid.has(id)))] : []};
 }
+root.ProProModel = Object.freeze({DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, validateData, readPrefs});
+})(globalThis);

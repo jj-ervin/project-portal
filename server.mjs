@@ -6,8 +6,8 @@ const root = dirname(fileURLToPath(import.meta.url));
 const routes = new Map([
   ['/', ['index.html','text/html']], ['/index.html', ['index.html','text/html']],
   ['/styles.css', ['styles.css','text/css']], ['/app.mjs', ['app.mjs','text/javascript']], ['/model.mjs', ['model.mjs','text/javascript']],
-  ['/cockpit/workbench.js', ['node_modules/@cockpit/gui/src/workbenchUI.js','text/javascript']],
-  ['/cockpit/styles.css', ['node_modules/@cockpit/gui/src/cockpitGUI.css','text/css']]
+  ['/node_modules/@cockpit/gui/src/workbenchUI.js', ['node_modules/@cockpit/gui/src/workbenchUI.js','text/javascript']],
+  ['/node_modules/@cockpit/gui/src/cockpitGUI.css', ['node_modules/@cockpit/gui/src/cockpitGUI.css','text/css']]
 ]);
 const port = Number(process.env.PORT || 8000);
 createServer(async (req, res) => {
