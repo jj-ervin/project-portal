@@ -6,9 +6,15 @@
 
 ProPro is an adaptable project portal for construction, research, freelance, creative, business, personal and software projects. Project capabilities can be combined; GitHub and AI are optional integrations, not prerequisites.
 
-**Current stage:** ProPro-001 — discovery and architecture (planning, not implementation).
+**Current stage:** runnable local dashboard candidate on `feature/propro-002-first-workspace`; review and human visual acceptance remain open.
 
 - [Product charter](docs/PRODUCT-CHARTER.md)
 - [ProPro-001 scope and exit criteria](docs/PROPRO-001.md)
 
 Development strategy: **A → C** — start with universal portfolio visibility and management, then expand toward integrated specialist workspaces. Keep the MVP small and evaluate existing solutions before committing to a stack.
+
+## Run the dashboard
+
+Use Node 22 or newer and run `npm ci` once to install the pinned local Cockpit GUI package. Then either open `index.html` directly or run `npm start` and visit http://localhost:8000. The app works offline after installation. Project data stays in the browser under the original `propro-project-portal-v1` key. A `file://` page and `http://localhost:8000` have separate browser storage; use Export JSON and Import JSON to move projects between them.
+
+Run `npm test` and `npm run test:browser` for model, browser, accessibility and viewport checks. See [PROP-CKP-001B implementation record](docs/PROP-CKP-001B-IMPLEMENTATION.md) for ownership, provenance and open acceptance gates.

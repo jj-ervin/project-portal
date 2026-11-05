@@ -39,3 +39,12 @@ Do not build a full ERP, accounting package, laboratory information system, IDE,
 
 ## Product hypothesis
 Adaptive project workspaces plus an explainable relationship graph and evidence-backed impact analysis could differentiate ProPro. This is a hypothesis requiring user and competitor validation, not an established market fact.
+
+## Owner feedback — candidate follow-up capabilities (2026-11-05)
+
+- Make the dashboard feel less oversized while retaining legible controls and the large rounded card default. Validate compact spacing at phone, tablet and desktop widths.
+- Give ProPro its own calendar for project tasks, milestones and deadlines. Evaluate optional connections to Outlook, Google Calendar and Proton Calendar, with explicit account permission and predictable synchronization behavior. A project should remain usable without any provider connection.
+- Add Gantt and other timeline/graph views derived from the same universal project records, so changing a view does not create a second source of truth.
+- Consider optional RSS feeds as project resources or updates, with clear source attribution and user control over refresh.
+
+These are candidate Roadmap B/C capabilities, not a change to the current MVP exit criteria. Validate user workflows and integration feasibility before selecting provider APIs or implementation order.
