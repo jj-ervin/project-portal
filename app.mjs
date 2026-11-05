@@ -27,13 +27,9 @@ function syncLayoutControls() {
   const explorerVisible = workbench.panelVisible('explorer');
   const contextVisible = workbench.panelVisible('context');
   const bottom = workbench.contextDock() === 'bottom';
-  $('toggle-explorer').textContent = explorerVisible ? 'Hide explorer' : 'Show explorer';
-  $('toggle-explorer').setAttribute('aria-pressed', String(!explorerVisible));
-  $('toggle-context').setAttribute('aria-expanded', String(contextVisible));
-  $('dock-right').setAttribute('aria-pressed', String(!bottom));
-  $('dock-bottom').setAttribute('aria-pressed', String(bottom));
-  $('dock-context').textContent = bottom ? 'Move to right' : 'Move to bottom';
-  $('dock-context').setAttribute('aria-label', `Move to ${bottom ? 'right' : 'bottom'} conversation panel`);
+  $('toggle-explorer').setAttribute('aria-pressed', String(explorerVisible));
+  $('dock-right').setAttribute('aria-pressed', String(contextVisible && !bottom));
+  $('dock-bottom').setAttribute('aria-pressed', String(contextVisible && bottom));
 }
 syncLayoutControls();
 
@@ -110,10 +106,13 @@ function detailHTML(p) {
 $('create-caps').innerHTML = CAPS.map(c => `<label><input type="checkbox" name="cap" value="${c}">${c}</label>`).join('');
 $('global-search').addEventListener('input', e => { filterQuery = e.target.value.trim().toLowerCase(); render(); });
 document.addEventListener('keydown', e => { if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) { e.preventDefault(); $('global-search').focus(); } });
-$('toggle-context').addEventListener('click', () => { const visible = workbench.setPanelVisible('context', !workbench.panelVisible('context')); syncLayoutControls(); if (visible) $('composer-input').focus(); });
 $('toggle-explorer').addEventListener('click', () => { workbench.setPanelVisible('explorer', !workbench.panelVisible('explorer')); syncLayoutControls(); });
-for (const position of ['right','bottom']) $('dock-' + position).addEventListener('click', () => { workbench.dockContext(position); workbench.setPanelVisible('context', true); syncLayoutControls(); $('layout-menu')?.removeAttribute('open'); });
-$('dock-context').addEventListener('click', () => { workbench.dockContext(workbench.contextDock() === 'right' ? 'bottom' : 'right'); syncLayoutControls(); });
+for (const position of ['right','bottom']) $('dock-' + position).addEventListener('click', () => {
+  const active = workbench.panelVisible('context') && workbench.contextDock() === position;
+  if (active) workbench.setPanelVisible('context', false);
+  else { workbench.dockContext(position); workbench.setPanelVisible('context', true); }
+  syncLayoutControls();
+});
 $('reset-layout').addEventListener('click', () => { workbench.resetLayout(); syncLayoutControls(); notice('Default layout restored.'); });
 $('composer-files').addEventListener('change', e => { attachments.push(...e.target.files); e.target.value = ''; renderAttachments(); showComposerResult(`${attachments.length} attachment${attachments.length === 1 ? '' : 's'} selected locally. No files have been uploaded.`); });
 $('composer-input').addEventListener('input', renderComposerSuggestions);

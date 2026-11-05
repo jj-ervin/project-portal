@@ -51,9 +51,9 @@ test('refined workspace searches locally, previews commands and keeps project da
   await expect(page.locator('#detail')).toBeEmpty();
   await expect(page.locator('#dashboard-heading')).toBeFocused();
   await expect(page.getByLabel('Search projects')).toHaveValue('');
-  await page.getByRole('button',{name:'Toggle conversation pane'}).click();
+  await page.getByRole('button',{name:'Toggle right panel'}).click();
   await expect(page.getByRole('complementary',{name:'Conversation and search'})).toBeHidden();
-  await page.getByRole('button',{name:'Toggle conversation pane'}).click();
+  await page.getByRole('button',{name:'Toggle right panel'}).click();
   await expect(page.getByRole('complementary',{name:'Conversation and search'})).toBeVisible();
   await page.reload();
   expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
@@ -66,8 +66,9 @@ test('conversation docks to bottom, resizes, restores, and resets without changi
   await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Docking sample');
   await page.getByRole('button',{name:'Create project',exact:true}).click();
   const before = await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'));
-  await page.getByRole('button',{name:/Move to bottom conversation/}).click();
+  await page.getByRole('button',{name:'Toggle bottom panel'}).click();
   await expect(page.locator('#workbench')).toHaveClass(/context-bottom/);
+  await expect(page.getByRole('button',{name:'Toggle bottom panel'})).toHaveAttribute('aria-pressed','true');
   const separator = page.getByRole('separator',{name:'Resize bottom panel'});
   await expect(separator).toHaveAttribute('aria-orientation','horizontal');
   await separator.focus();
@@ -82,14 +83,24 @@ test('conversation docks to bottom, resizes, restores, and resets without changi
   await page.screenshot({path:'docs/screenshots/propro-docked-1280.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await expect(page.locator('#context')).toBeVisible();
+  for (const id of ['toggle-explorer','dock-bottom','dock-right']) {
+    const button = page.locator('#' + id);
+    await expect(button).toBeVisible();
+    const box = await button.boundingBox();
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+  }
+  await expect(page.locator('#dock-context')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({width:1280,height:800});
   await page.reload();
   await expect(page.locator('#workbench')).toHaveClass(/context-bottom/);
   await expect(page.locator('#workbench')).toHaveCSS('--cockpit-context-height','286px');
-  await page.getByLabel('Workspace layout').click();
-  await page.getByRole('button',{name:'Hide explorer'}).click();
+  await page.getByRole('button',{name:'Toggle primary sidebar'}).click();
   await expect(page.locator('#explorer')).toBeHidden();
+  await page.getByRole('button',{name:'Toggle bottom panel'}).click();
+  await expect(page.locator('#context')).toBeHidden();
+  await page.getByRole('button',{name:'Toggle bottom panel'}).click();
+  await expect(page.locator('#context')).toBeVisible();
   await page.reload();
   await expect(page.locator('#explorer')).toBeHidden();
   await page.getByLabel('Workspace layout').click();
