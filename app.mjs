@@ -12,6 +12,7 @@ catch { loadError = true; }
 let prefs = readPrefs(localStorage.getItem(PREF_KEY), data.projects.map(p => p.id));
 let filterQuery = '';
 let attachments = [];
+let composerSuggestions = [];
 const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [
   {id:'home',label:'Home',glyph:'⌂'}, {id:'projects',label:'Projects',glyph:'▤'},
   {id:'search',label:'Search',glyph:'⌕'}, {id:'conversation',label:'Conversation',glyph:'✦'}
@@ -20,9 +21,21 @@ const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), e
   if (id === 'home') { selected = null; detailTab = 'Overview'; filterQuery = ''; $('global-search').value = ''; render(); $('dashboard-heading').focus(); }
   if (id === 'projects') (document.querySelector('.nav-project') || document.querySelector('.explorer-head button')).focus();
   if (id === 'search') $('global-search').focus();
-  if (id === 'conversation') { workbench.setPanelVisible('context', true); $('toggle-context').setAttribute('aria-expanded', 'true'); $('composer-input').focus(); }
+  if (id === 'conversation') { workbench.setPanelVisible('context', true); syncLayoutControls(); $('composer-input').focus(); }
 }});
-workbench.setPanelVisible('context', true);
+function syncLayoutControls() {
+  const explorerVisible = workbench.panelVisible('explorer');
+  const contextVisible = workbench.panelVisible('context');
+  const bottom = workbench.contextDock() === 'bottom';
+  $('toggle-explorer').textContent = explorerVisible ? 'Hide explorer' : 'Show explorer';
+  $('toggle-explorer').setAttribute('aria-pressed', String(!explorerVisible));
+  $('toggle-context').setAttribute('aria-expanded', String(contextVisible));
+  $('dock-right').setAttribute('aria-pressed', String(!bottom));
+  $('dock-bottom').setAttribute('aria-pressed', String(bottom));
+  $('dock-context').textContent = bottom ? 'Move to right' : 'Move to bottom';
+  $('dock-context').setAttribute('aria-label', `Move to ${bottom ? 'right' : 'bottom'} conversation panel`);
+}
+syncLayoutControls();
 
 function matchesProject(project, query) {
   const text = [project.name, ...project.capabilities, ...['items','resources','evidence','links'].flatMap(key => project[key].map(item => item.title))].join(' ').toLowerCase();
@@ -34,6 +47,25 @@ function projectSummary(project) {
 }
 function renderAttachments() {
   $('composer-attachments').innerHTML = attachments.map((file, index) => `<span class="attachment-chip">${esc(file.name)} <button type="button" data-attachment="${index}" aria-label="Remove ${esc(file.name)}">×</button></span>`).join('');
+}
+function renderComposerSuggestions() {
+  const match = $('composer-input').value.match(/(?:^|\s)([#@/])([^\s]*)$/);
+  composerSuggestions = [];
+  if (match) {
+    const needle = match[2].toLowerCase();
+    const candidates = match[1] === '#' ? CAPS.map(cap => '#' + cap) :
+      match[1] === '@' ? data.projects.map(project => '@' + project.name) : ['/help','/status'];
+    composerSuggestions = candidates.filter(value => value.toLowerCase().slice(1).startsWith(needle)).slice(0,6);
+  }
+  $('composer-suggestions').innerHTML = composerSuggestions.map((value,index) => `<button type="button" data-suggestion="${index}">${esc(value)}</button>`).join('');
+}
+function chooseComposerSuggestion(index) {
+  const value = composerSuggestions[index];
+  if (!value) return;
+  $('composer-input').value = $('composer-input').value.replace(/(?:^|\s)[#@/][^\s]*$/, match => (match.startsWith(' ') ? ' ' : '') + value + ' ');
+  composerSuggestions = [];
+  $('composer-suggestions').innerHTML = '';
+  $('composer-input').focus();
 }
 function showComposerResult(message, projects = []) {
   $('composer-results').innerHTML = `<p>${esc(message)}</p>${projects.length ? `<ul>${projects.map(project => `<li><button type="button" data-select="${esc(project.id)}">${esc(project.name)}</button><small>${esc(projectSummary(project))}</small></li>`).join('')}</ul>` : ''}`;
@@ -78,10 +110,29 @@ function detailHTML(p) {
 $('create-caps').innerHTML = CAPS.map(c => `<label><input type="checkbox" name="cap" value="${c}">${c}</label>`).join('');
 $('global-search').addEventListener('input', e => { filterQuery = e.target.value.trim().toLowerCase(); render(); });
 document.addEventListener('keydown', e => { if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) { e.preventDefault(); $('global-search').focus(); } });
-$('toggle-context').addEventListener('click', () => { const visible = workbench.setPanelVisible('context', !workbench.panelVisible('context')); $('toggle-context').setAttribute('aria-expanded', String(visible)); if (visible) $('composer-input').focus(); });
+$('toggle-context').addEventListener('click', () => { const visible = workbench.setPanelVisible('context', !workbench.panelVisible('context')); syncLayoutControls(); if (visible) $('composer-input').focus(); });
+$('toggle-explorer').addEventListener('click', () => { workbench.setPanelVisible('explorer', !workbench.panelVisible('explorer')); syncLayoutControls(); });
+for (const position of ['right','bottom']) $('dock-' + position).addEventListener('click', () => { workbench.dockContext(position); workbench.setPanelVisible('context', true); syncLayoutControls(); $('layout-menu')?.removeAttribute('open'); });
+$('dock-context').addEventListener('click', () => { workbench.dockContext(workbench.contextDock() === 'right' ? 'bottom' : 'right'); syncLayoutControls(); });
+$('reset-layout').addEventListener('click', () => { workbench.resetLayout(); syncLayoutControls(); notice('Default layout restored.'); });
 $('composer-files').addEventListener('change', e => { attachments.push(...e.target.files); e.target.value = ''; renderAttachments(); showComposerResult(`${attachments.length} attachment${attachments.length === 1 ? '' : 's'} selected locally. No files have been uploaded.`); });
+$('composer-input').addEventListener('input', renderComposerSuggestions);
+$('composer-input').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' && composerSuggestions.length) { e.preventDefault(); $('composer-suggestions').querySelector('button')?.focus(); }
+  if (e.key === 'Escape') { composerSuggestions = []; $('composer-suggestions').innerHTML = ''; }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); }
+});
+$('composer-suggestions').addEventListener('keydown', e => {
+  const buttons = [...$('composer-suggestions').querySelectorAll('button')];
+  const index = buttons.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown') { e.preventDefault(); buttons[(index + 1) % buttons.length]?.focus(); }
+  if (e.key === 'ArrowUp') { e.preventDefault(); (index <= 0 ? $('composer-input') : buttons[index - 1]).focus(); }
+  if (e.key === 'Escape') { composerSuggestions = []; $('composer-suggestions').innerHTML = ''; $('composer-input').focus(); }
+});
+$('composer-suggestions').addEventListener('click', e => { const button = e.target.closest('button[data-suggestion]'); if (button) chooseComposerSuggestion(Number(button.dataset.suggestion)); });
 $('composer').addEventListener('submit', e => {
   e.preventDefault();
+  composerSuggestions = []; $('composer-suggestions').innerHTML = '';
   const query = $('composer-input').value.trim();
   if (!query) { showComposerResult('Enter a project, entry, #tag, @project or /help.'); return; }
   if (query.startsWith('/')) {

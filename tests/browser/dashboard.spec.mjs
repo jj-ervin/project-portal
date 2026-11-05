@@ -31,6 +31,10 @@ test('refined workspace searches locally, previews commands and keeps project da
   await expect(page.getByLabel('Search projects')).toBeFocused();
   await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Conversation'}).click();
   await expect(page.getByLabel('Ask or search workspace')).toBeFocused();
+  await page.getByLabel('Ask or search workspace').fill('#Re');
+  await page.getByLabel('Ask or search workspace').press('ArrowDown');
+  await page.locator('#composer-suggestions').getByRole('button',{name:'#Research'}).press('Enter');
+  await expect(page.getByLabel('Ask or search workspace')).toHaveValue('#Research ');
   await page.getByLabel('Ask or search workspace').fill('#Research');
   await page.getByRole('button',{name:'Search workspace'}).click();
   await expect(page.locator('#composer-results')).toContainText('1 local result');
@@ -52,6 +56,35 @@ test('refined workspace searches locally, previews commands and keeps project da
   await page.getByRole('button',{name:'Toggle conversation pane'}).click();
   await expect(page.getByRole('complementary',{name:'Conversation and search'})).toBeVisible();
   await page.reload();
+  expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
+});
+
+test('conversation docks to bottom, resizes, restores, and resets without changing projects', async ({page}) => {
+  await page.setViewportSize({width:1280,height:800});
+  await page.goto('/');
+  await page.getByRole('button',{name:'New project'}).first().click();
+  await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Docking sample');
+  await page.getByRole('button',{name:'Create project',exact:true}).click();
+  const before = await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'));
+  await page.getByRole('button',{name:/Move to bottom conversation/}).click();
+  await expect(page.locator('#workbench')).toHaveClass(/context-bottom/);
+  const separator = page.getByRole('separator',{name:'Resize bottom panel'});
+  await expect(separator).toHaveAttribute('aria-orientation','horizontal');
+  await separator.focus();
+  await separator.press('ArrowUp');
+  await expect(page.locator('#workbench')).toHaveCSS('--cockpit-context-height','256px');
+  await page.screenshot({path:'docs/screenshots/propro-docked-1280.png',fullPage:true});
+  await page.reload();
+  await expect(page.locator('#workbench')).toHaveClass(/context-bottom/);
+  await page.getByLabel('Workspace layout').click();
+  await page.getByRole('button',{name:'Hide explorer'}).click();
+  await expect(page.locator('#explorer')).toBeHidden();
+  await page.reload();
+  await expect(page.locator('#explorer')).toBeHidden();
+  await page.getByLabel('Workspace layout').click();
+  await page.getByRole('button',{name:'Restore default layout'}).click();
+  await expect(page.locator('#workbench')).not.toHaveClass(/context-bottom/);
+  await expect(page.locator('#explorer')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
 });
 

@@ -9,7 +9,7 @@
   },
   "engines": { "node": ">=22" },
   "dependencies": {
-    "@cockpit/gui": "file:vendor/cockpit-gui-0.1.0.tgz"
+    "@cockpit/gui": "file:vendor/cockpit-gui-0.1.1.tgz"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
