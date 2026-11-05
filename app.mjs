@@ -10,7 +10,18 @@ let loadError = false;
 try { const raw = localStorage.getItem(DATA_KEY); if (raw) data = validateData(JSON.parse(raw)); }
 catch { loadError = true; }
 let prefs = readPrefs(localStorage.getItem(PREF_KEY), data.projects.map(p => p.id));
-const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [{id:'projects',label:'Projects',glyph:'▤'}], initialActivity:'projects', onActivity: () => $('dashboard-heading').focus()});
+const DENSITY_KEY = 'propro-workspace-density-v1';
+let density = 'balanced';
+try { if (localStorage.getItem(DENSITY_KEY) === 'refined') density = 'refined'; } catch {}
+function applyDensity() { document.documentElement.dataset.density = density; $('density').value = density; }
+applyDensity();
+$('density').addEventListener('change', () => {
+  density = $('density').value === 'refined' ? 'refined' : 'balanced';
+  applyDensity();
+  try { localStorage.setItem(DENSITY_KEY, density); notice(`${density === 'refined' ? 'Refined' : 'Balanced'} density selected.`); }
+  catch { notice('Density preference could not be saved.'); }
+});
+const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [{id:'home',label:'Home',glyph:'⌂'}], initialActivity:'home', onActivity: () => { selected = null; detailTab = 'Overview'; render(); $('dashboard-heading').focus(); }});
 workbench.setPanelVisible('context', false);
 
 function notice(message) { $('message').textContent = message; }

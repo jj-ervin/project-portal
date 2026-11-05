@@ -36,6 +36,13 @@ Owner feedback on scale led to a compact spacing pass on 2026-11-05: the header,
 
 ## Open gates
 
+### Refined Adaptive Workspace slice — 2026-11-05
+
+The host now labels the activity rail action Home and returns focus to the dashboard when it is used. Balanced is the default workspace density; Refined tightens spacing and card radius while keeping control sizes and readable type. The selector saves only `propro-workspace-density-v1`, separate from version 1 project data and existing card-mode preferences. A browser regression covers return, focus, persistence and project-data preservation. This is the first slice of the Cockpit GUI CKP-GUI-007 UX baseline; docking, multiwindow behavior and the universal composer remain planned.
+
+Chromium verification: 2 model tests and 6 browser tests passed; the browser suite checked overflow and automated axe rules at 375, 768, 1280 and 1920px. Actual running captures were refreshed at those widths for Balanced and added at `docs/screenshots/propro-refined-1280.png` for Refined. Visual inspection of the 375px Balanced and 1280px Balanced/Refined captures found no clipped critical controls or unintended page overflow. Human visual approval and task-based usability testing are still open.
+
+
 - Human owner acceptance of the actual running UI and task-based usability review.
 - Screen-reader, physical touch, zoom/magnification and operating-system high-contrast checks. Automated axe checks do not establish full WCAG conformance.
 - Firefox viewport and axe checks need a working resize in this Windows Playwright environment.

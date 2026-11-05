@@ -1,9 +1,18 @@
 :root { font: 16px/1.45 system-ui, sans-serif; --ink:#193047; --muted:#52647a; --border:#cbd5df; --blue:#205a9d; }
 body { margin:0; color:var(--ink); background:#f4f7fa; }
-button,input { font:inherit; } button { cursor:pointer; border:1px solid #9aaec3; background:white; color:var(--ink); border-radius:10px; padding:.48rem .75rem; } button:hover { background:#e9f1f9; }
-button:focus-visible, input:focus-visible, .import-label:focus-within { outline:3px solid #135eaa; outline-offset:2px; }
+button,input,select { font:inherit; } button { cursor:pointer; border:1px solid #9aaec3; background:white; color:var(--ink); border-radius:10px; padding:.48rem .75rem; } button:hover { background:#e9f1f9; }
+button:focus-visible, input:focus-visible, select:focus-visible, .import-label:focus-within { outline:3px solid #135eaa; outline-offset:2px; }
 .primary { background:var(--blue); border-color:var(--blue); color:white; } .primary:hover { background:#164779; }
 .site-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; padding:.8rem clamp(.8rem,2.5vw,2rem); background:#fff; border-bottom:1px solid var(--border); }
+.header-actions > label:first-child { display:flex; align-items:center; gap:.4rem; font-size:.85rem; }
+.header-actions select { color:var(--ink); background:#fff; border:1px solid #9aaec3; border-radius:8px; padding:.4rem; }
+.cockpit-workbench__activity-button[data-activity=home] span { display:inline-block; transform:scale(1.5); font-weight:700; }
+html[data-density=refined] .site-header { padding-block:.5rem; }
+html[data-density=refined] #content.cockpit-workbench__content { padding:.7rem; }
+html[data-density=refined] .cards { gap:.65rem; }
+html[data-density=refined] .project-card { border-radius:10px; padding:.7rem; }
+html[data-density=refined] .project-card[data-selected=true] { padding:calc(.7rem - 1px); }
+html[data-density=refined] .card-meta { margin-top:.55rem; }
 .site-header h1 { margin:0; font-size:clamp(1.6rem,2.5vw,2rem); line-height:1.1; } .site-header p { margin:.15rem 0 0; } .eyebrow { margin:0 0 .2rem; text-transform:uppercase; letter-spacing:.12em; color:#335c84; font-size:.72rem; font-weight:800; }
 .header-actions,.row { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; } .import-label { display:inline-flex; align-items:center; position:relative; border:1px solid #9aaec3; background:#fff; border-radius:10px; padding:.48rem .75rem; cursor:pointer; } .import-label input { position:absolute; inset:0; width:100%; opacity:0; cursor:pointer; }
 .status { min-height:1.4rem; margin:.25rem clamp(.8rem,3vw,2.5rem); color:#245d3d; }

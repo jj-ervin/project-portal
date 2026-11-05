@@ -17,6 +17,29 @@ test('opening index.html directly loads the styled dashboard and its actions', a
   expect(errors).toEqual([]);
 });
 
+test('Home returns to dashboard and density survives reload without changing project data', async ({page}) => {
+  await page.goto('/');
+  await expect(page.getByLabel('Workspace density')).toHaveValue('balanced');
+  await page.getByRole('button',{name:'New project'}).first().click();
+  await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Density sample');
+  await page.getByRole('button',{name:'Create project',exact:true}).click();
+  await page.getByRole('button',{name:'Open Density sample'}).click();
+  await expect(page.getByRole('heading',{name:'Density sample',level:2})).toBeVisible();
+  const before = await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'));
+  await page.getByLabel('Workspace density').selectOption('refined');
+  await expect(page.locator('html')).toHaveAttribute('data-density','refined');
+  await expect(page.locator('.project-card').first()).toHaveCSS('border-radius','10px');
+  await page.screenshot({path:'docs/screenshots/propro-refined-1280.png',fullPage:true});
+  await page.getByRole('button',{name:'Home'}).click();
+  await expect(page.locator('#detail')).toBeEmpty();
+  await expect(page.locator('#dashboard-heading')).toBeFocused();
+  await page.reload();
+  await expect(page.getByLabel('Workspace density')).toHaveValue('refined');
+  expect(await page.evaluate(() => localStorage.getItem('propro-project-portal-v1'))).toBe(before);
+  await page.getByLabel('Workspace density').selectOption('balanced');
+  await expect(page.locator('html')).toHaveAttribute('data-density','balanced');
+});
+
 test('project actions and independent card state survive mode changes and reload', async ({page}) => {
   await page.goto('/');
   await page.getByRole('button',{name:'New project'}).first().click();
