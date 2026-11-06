@@ -7,6 +7,12 @@ const CAPS = ['Construction', 'Research', 'Freelance', 'Development', 'Creative'
 const MODES = ['large', 'mini', 'grid', 'list'];
 const emptyData = () => ({version: 1, projects: []});
 const newProject = (id, name, capabilities = []) => ({id, name, capabilities, items: [], resources: [], evidence: [], links: []});
+// Only navigable web URLs may be stored for external project portals. Title-only legacy links remain valid.
+function portalUrl(value) {
+  if (typeof value !== 'string' || value.length > 2048 || !value.trim()) return null;
+  try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : null; }
+  catch { return null; }
+}
 function validateData(value) {
   if (!value || value.version !== 1 || !Array.isArray(value.projects) || value.projects.length > 500) throw Error('Unsupported project file');
   const ids = new Set();
@@ -14,7 +20,7 @@ function validateData(value) {
     if (!p || typeof p.id !== 'string' || !p.id || ids.has(p.id) || typeof p.name !== 'string' || !p.name.trim() || p.name.length > 200 || !Array.isArray(p.capabilities) || !p.capabilities.every(c => CAPS.includes(c)) || !['items','resources','evidence','links'].every(k => Array.isArray(p[k]))) throw Error('Invalid project data');
     ids.add(p.id);
     for (const key of ['items','resources','evidence','links']) {
-      if (p[key].length > 1000 || !p[key].every(x => x && typeof x.id === 'string' && x.id && typeof x.title === 'string' && x.title.length <= 1000)) throw Error('Invalid ' + key);
+      if (p[key].length > 1000 || !p[key].every(x => x && typeof x.id === 'string' && x.id && typeof x.title === 'string' && x.title.length <= 1000 && (key !== 'links' || x.url === undefined || portalUrl(x.url) !== null))) throw Error('Invalid ' + key);
     }
   }
   return value;
@@ -24,5 +30,5 @@ function readPrefs(raw, ids = []) {
   const valid = new Set(ids);
   return {mode: MODES.includes(p.mode) ? p.mode : 'large', minimized: Array.isArray(p.minimized) ? [...new Set(p.minimized.filter(id => valid.has(id)))] : []};
 }
-root.ProProModel = Object.freeze({DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, validateData, readPrefs});
+root.ProProModel = Object.freeze({DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, validateData, readPrefs, portalUrl});
 })(globalThis);
