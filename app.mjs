@@ -35,7 +35,7 @@ const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), e
   workbench.activate(id);
   if (id === 'home') { detailTab = 'Overview'; filterQuery = ''; $('global-search').value = ''; activateWorkspaceTab('home'); $('dashboard-heading').focus(); }
   if (id === 'workspace') { activateWorkspaceTab(lastWorkTab || 'workspace'); ($('workspace-extra').querySelector('h2') || $('editor-tab-list').querySelector('[role="tab"]'))?.focus(); }
-  if (id === 'projects') { workbench.setPanelVisible('explorer', true); syncLayoutControls(); activateWorkspaceTab('home'); (document.querySelector('.nav-project') || document.querySelector('.explorer-head button')).focus(); }
+  if (id === 'projects') { workbench.setPanelVisible('explorer', true); syncLayoutControls(); activateWorkspaceTab('home'); explorerUI.activate('projects', true); }
   if (id === 'search') { activateWorkspaceTab('home'); $('global-search').focus(); }
   if (id === 'conversation') { workbench.setPanelVisible('context', true); syncLayoutControls(); $('composer-input').focus(); }
 }});
@@ -58,6 +58,22 @@ function syncLayoutControls() {
   $('dock-bottom').setAttribute('aria-pressed', String(workbench.panelVisible('bottom')));
 }
 syncLayoutControls();
+const explorerUI = window.CockpitTabbedExplorerUI({document, root:$('tabbed-explorer'), storage:localStorage, storageKey:'propro-tabbed-explorer-v1', tabs:[
+  {id:'projects',label:'Projects',icon:'▤',provider:{getNodes:() => data.projects.map(project => ({
+    id:`project:${project.id}`,label:project.name,icon:'▤',kind:'project',projectId:project.id,
+    children:['items','resources','evidence','links'].flatMap(kind => project[kind].length ? [{
+      id:`group:${project.id}:${kind}`,label:{items:'Tasks',resources:'Resources',evidence:'Evidence',links:'Links'}[kind],icon:'▸',
+      children:project[kind].map(entry => ({id:`entry:${project.id}:${kind}:${entry.id}`,label:entry.title,kind:'entry',projectId:project.id,entryKind:kind,entryId:entry.id}))
+    }] : [])
+  })),open:node => { if (node.kind === 'project') openProjectTab(node.projectId); if (node.kind === 'entry') openEntryTab(node.projectId,node.entryKind,node.entryId); }}},
+  {id:'files',label:'Files',icon:'▣',emptyMessage:'Open a local file in the center workspace to see it here. Only files you choose can be previewed.',provider:{getNodes:() => workspaceTabs.filter(tab => tab.kind === 'file').map(tab => ({id:tab.id,label:tab.title,icon:tab.fileType === 'pdf' ? '▧' : '≡',tabId:tab.id})),open:node => activateWorkspaceTab(node.tabId)}},
+  {id:'assets',label:'Assets',icon:'◇',provider:{getNodes:() => ({message:'Local project resource, evidence and link titles; no binary asset library is connected.',nodes:data.projects.flatMap(project => {
+    const children = ['resources','evidence','links'].flatMap(kind => project[kind].map(entry => ({id:`asset:${project.id}:${kind}:${entry.id}`,label:entry.title,meta:{resources:'Resource',evidence:'Evidence',links:'Link'}[kind],projectId:project.id,entryKind:kind,entryId:entry.id})));
+    return children.length ? [{id:`assets:${project.id}`,label:project.name,children}] : [];
+  })}),open:node => { if (node.entryId) openEntryTab(node.projectId,node.entryKind,node.entryId); }}},
+  {id:'git',label:'Git',icon:'⑂',unavailableMessage:'Git is not connected to this browser workspace. No repositories or changes are being read.'},
+  {id:'conversations',label:'Conversations',icon:'✦',unavailableMessage:'Conversation history is not connected. This pane cannot read your chats.'}
+]});
 const utilityTabs = ['terminal', 'problems', 'notes'];
 const utilityLabels = {terminal:'CLI scratchpad', problems:'Problems', notes:'Notes'};
 const tabStrip = document.createElement('div');
@@ -134,7 +150,7 @@ const workspaceExtra = document.createElement('section');
 workspaceExtra.id = 'workspace-extra'; workspaceExtra.setAttribute('aria-label', 'Open workspace item');
 const editorTabs = document.createElement('div');
 editorTabs.className = 'editor-tabs';
-editorTabs.innerHTML = '<div id="editor-tab-list" role="tablist" aria-label="Open workspace tabs"></div><div class="editor-actions"><button id="open-cli-tab" type="button">Open CLI</button><label class="open-file-button">Open file<input id="open-workspace-file" type="file" accept=".md,.txt,.json,.js,.ts,.css,.html,.pdf,text/plain,text/markdown,application/pdf"></label></div>';
+editorTabs.innerHTML = '<div id="editor-tab-list" role="tablist" aria-label="Open workspace tabs"></div><div class="editor-actions"><button id="close-active-tab" type="button" hidden>×</button><button id="open-cli-tab" type="button">Open CLI</button><label class="open-file-button">Open file<input id="open-workspace-file" type="file" accept=".md,.txt,.json,.js,.ts,.css,.html,.pdf,text/plain,text/markdown,application/pdf"></label></div>';
 center.append(editorTabs, dashboardView, $('detail'), workspaceExtra);
 function workspaceTab(id) { return workspaceTabs.find(tab => tab.id === id); }
 function openProjectTab(id) {
@@ -173,25 +189,24 @@ function closeWorkspaceTab(id) {
   if (lastWorkTab === id) lastWorkTab = workspaceTabs.findLast(item => item.kind !== 'dashboard')?.id || null;
   if (activeWorkspaceTab === id) activateWorkspaceTab(workspaceTabs[Math.max(0,index - 1)]?.id || 'home');
   else renderWorkspaceTabs();
+  explorerUI.refresh();
 }
 function renderWorkspaceTabs() {
   const list = $('editor-tab-list');
   list.innerHTML = '';
   for (const tab of workspaceTabs) {
-    const group = document.createElement('div'); group.className = 'editor-tab-item';
     const button = document.createElement('button');
-    button.type = 'button'; button.setAttribute('role','tab');
+    button.type = 'button'; button.className = 'editor-tab-item'; button.setAttribute('role','tab');
     button.dataset.workspaceTab = tab.id;
     button.setAttribute('aria-selected',String(tab.id === activeWorkspaceTab));
     button.setAttribute('aria-controls',tab.kind === 'dashboard' ? 'dashboard-view' : tab.kind === 'project' ? 'detail' : 'workspace-extra');
     button.tabIndex = tab.id === activeWorkspaceTab ? 0 : -1;
     button.textContent = tab.kind === 'project' ? (data.projects.find(p => p.id === tab.projectId)?.name || 'Project') : tab.title;
-    group.append(button);
-    const close = document.createElement('button'); close.type = 'button'; close.className = 'close-editor-tab';
-    close.dataset.closeWorkspaceTab = tab.id; close.setAttribute('aria-label',`Close ${button.textContent} tab`); close.textContent = '×';
-    group.append(close);
-    list.append(group);
+    list.append(button);
   }
+  const closeActive = $('close-active-tab'), currentTab = workspaceTab(activeWorkspaceTab);
+  closeActive.hidden = !currentTab;
+  if (currentTab) { closeActive.dataset.closeWorkspaceTab = currentTab.id; closeActive.setAttribute('aria-label',`Close ${list.querySelector('[aria-selected="true"]')?.textContent} tab`); }
   editorTabs.hidden = activeWorkspaceTab === 'home';
   dashboardView.hidden = activeWorkspaceTab !== 'home' && activeWorkspaceTab !== 'dashboard-tab';
   homeActions.hidden = activeWorkspaceTab !== 'home';
@@ -227,11 +242,10 @@ function commandPreview(command) {
   return command === '/help' ? 'Available previews: /help and /status. No commands are executed.' : command === '/status' ? `${data.projects.length} local projects. No terminal connection is active.` : command ? `${command} is not connected. Nothing was executed.` : 'Enter /help or /status.';
 }
 $('editor-tab-list').addEventListener('click', event => {
-  const close = event.target.closest('[data-close-workspace-tab]');
-  if (close) { closeWorkspaceTab(close.dataset.closeWorkspaceTab); return; }
   const tab = event.target.closest('[data-workspace-tab]');
   if (tab) activateWorkspaceTab(tab.dataset.workspaceTab);
 });
+$('close-active-tab').addEventListener('click', () => { const id = $('close-active-tab').dataset.closeWorkspaceTab; if (id) closeWorkspaceTab(id); });
 $('editor-tab-list').addEventListener('keydown', event => {
   const tabs = [...$('editor-tab-list').querySelectorAll('[role="tab"]')];
   const index = tabs.indexOf(document.activeElement);
@@ -258,6 +272,7 @@ async function openWorkspaceFile(event) {
     const tab = {id:`file:${uid()}`,kind:'file',title:file.name,fileType:pdf ? 'pdf' : 'text'};
     if (pdf) tab.url = URL.createObjectURL(file); else tab.content = await file.text();
     workspaceTabs.push(tab); activateWorkspaceTab(tab.id);
+    explorerUI.refresh();
   } catch { notice('Could not open that local file.'); }
 }
 $('open-workspace-file').addEventListener('change', openWorkspaceFile);
@@ -364,7 +379,6 @@ function render() {
   $('overview-stats').innerHTML = `<div><strong>${data.projects.length}</strong><span>Projects</span></div><div><strong>${data.projects.reduce((n,x)=>n+x.items.length,0)}</strong><span>Tasks</span></div><div><strong>${entries}</strong><span>Total entries</span></div>`;
   $('section-count').textContent = `${visibleProjects.length} shown`;
   $('context-project').textContent = p ? p.name : 'All projects';
-  $('project-nav').innerHTML = visibleProjects.map(x => `<button type="button" class="nav-project" data-select="${esc(x.id)}" aria-current="${x.id === selected ? 'true':'false'}"><span aria-hidden="true">▤</span>${esc(x.name)}</button>`).join('') || `<p class="muted">${filterQuery ? 'No matches.' : 'No projects yet.'}</p>`;
   document.querySelectorAll('button[data-mode]').forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.mode === prefs.mode)); });
   $('cards').dataset.mode = prefs.mode;
   $('cards').innerHTML = visibleProjects.map(x => {
@@ -377,6 +391,7 @@ function render() {
   renderHomePins();
   $('detail').innerHTML = p ? detailHTML(p) : '';
   renderWorkspaceTabs();
+  explorerUI.refresh();
 }
 function detailHTML(p) {
   const tabs = ['Overview','Tasks','Resources','Evidence','Links',...p.capabilities];
