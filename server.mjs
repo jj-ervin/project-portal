@@ -8,6 +8,7 @@ const routes = new Map([
   ['/styles.css', ['styles.css','text/css']], ['/app.mjs', ['app.mjs','text/javascript']], ['/model.mjs', ['model.mjs','text/javascript']],
   ['/node_modules/@cockpit/gui/src/workbenchUI.js', ['node_modules/@cockpit/gui/src/workbenchUI.js','text/javascript']],
   ['/node_modules/@cockpit/gui/src/tabbedExplorerUI.js', ['node_modules/@cockpit/gui/src/tabbedExplorerUI.js','text/javascript']],
+  ['/node_modules/@cockpit/gui/src/composerUI.js', ['node_modules/@cockpit/gui/src/composerUI.js','text/javascript']],
   ['/node_modules/@cockpit/gui/src/cockpitGUI.css', ['node_modules/@cockpit/gui/src/cockpitGUI.css','text/css']]
 ]);
 const port = Number(process.env.PORT || 8000);

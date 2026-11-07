@@ -11,8 +11,6 @@ try { const raw = localStorage.getItem(DATA_KEY); if (raw) data = validateData(J
 catch { loadError = true; }
 let prefs = readPrefs(localStorage.getItem(PREF_KEY), data.projects.map(p => p.id));
 let filterQuery = '';
-let attachments = [];
-let composerSuggestions = [];
 let workspaceTabs = [];
 let activeWorkspaceTab = 'home';
 let lastWorkTab = null;
@@ -340,28 +338,17 @@ function openHomePin(key) {
   if (pin?.kind === 'project') openProjectTab(pin.project.id);
   if (pin?.kind === 'entry') openEntryTab(pin.project.id,pin.entryKind,pin.entry.id);
 }
-function renderAttachments() {
-  $('composer-attachments').innerHTML = attachments.map((file, index) => `<span class="attachment-chip">${esc(file.name)} <button type="button" data-attachment="${index}" aria-label="Remove ${esc(file.name)}">×</button></span>`).join('');
-}
-function renderComposerSuggestions() {
-  const match = $('composer-input').value.match(/(?:^|\s)([#@/])([^\s]*)$/);
-  composerSuggestions = [];
-  if (match) {
-    const needle = match[2].toLowerCase();
-    const candidates = match[1] === '#' ? CAPS.map(cap => '#' + cap) :
-      match[1] === '@' ? data.projects.map(project => '@' + project.name) : ['/help','/status'];
-    composerSuggestions = candidates.filter(value => value.toLowerCase().slice(1).startsWith(needle)).slice(0,6);
-  }
-  $('composer-suggestions').innerHTML = composerSuggestions.map((value,index) => `<button type="button" data-suggestion="${index}">${esc(value)}</button>`).join('');
-}
-function chooseComposerSuggestion(index) {
-  const value = composerSuggestions[index];
-  if (!value) return;
-  $('composer-input').value = $('composer-input').value.replace(/(?:^|\s)[#@/][^\s]*$/, match => (match.startsWith(' ') ? ' ' : '') + value + ' ');
-  composerSuggestions = [];
-  $('composer-suggestions').innerHTML = '';
-  $('composer-input').focus();
-}
+const composerUI = window.CockpitComposerUI({
+  document, form:$('composer'), input:$('composer-input'),
+  suggestions:$('composer-suggestions'), attachments:$('composer-attachments'),
+  fileInput:$('composer-files'),
+  getSuggestions:(prefix, query) => {
+    const candidates = prefix === '#' ? CAPS.map(cap => '#' + cap) :
+      prefix === '@' ? data.projects.map(project => '@' + project.name) : ['/help','/status'];
+    return candidates.filter(value => value.toLowerCase().slice(1).startsWith(query.toLowerCase()));
+  },
+  onAttachmentsChange:files => showComposerResult(`${files.length} attachment${files.length === 1 ? '' : 's'} selected locally. No files have been uploaded.`)
+});
 function showComposerResult(message, projects = []) {
   $('composer-results').innerHTML = `<p>${esc(message)}</p>${projects.length ? `<ul>${projects.map(project => `<li><button type="button" data-select="${esc(project.id)}">${esc(project.name)}</button><small>${esc(projectSummary(project))}</small></li>`).join('')}</ul>` : ''}`;
 }
@@ -420,24 +407,9 @@ $('dock-right').addEventListener('click', () => {
 });
 $('dock-bottom').addEventListener('click', () => { workbench.setPanelVisible('bottom', !workbench.panelVisible('bottom')); syncLayoutControls(); });
 $('reset-layout').addEventListener('click', () => { workbench.resetLayout(); syncLayoutControls(); notice('Default layout restored.'); });
-$('composer-files').addEventListener('change', e => { attachments.push(...e.target.files); e.target.value = ''; renderAttachments(); showComposerResult(`${attachments.length} attachment${attachments.length === 1 ? '' : 's'} selected locally. No files have been uploaded.`); });
-$('composer-input').addEventListener('input', renderComposerSuggestions);
-$('composer-input').addEventListener('keydown', e => {
-  if (e.key === 'ArrowDown' && composerSuggestions.length) { e.preventDefault(); $('composer-suggestions').querySelector('button')?.focus(); }
-  if (e.key === 'Escape') { composerSuggestions = []; $('composer-suggestions').innerHTML = ''; }
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); }
-});
-$('composer-suggestions').addEventListener('keydown', e => {
-  const buttons = [...$('composer-suggestions').querySelectorAll('button')];
-  const index = buttons.indexOf(document.activeElement);
-  if (e.key === 'ArrowDown') { e.preventDefault(); buttons[(index + 1) % buttons.length]?.focus(); }
-  if (e.key === 'ArrowUp') { e.preventDefault(); (index <= 0 ? $('composer-input') : buttons[index - 1]).focus(); }
-  if (e.key === 'Escape') { composerSuggestions = []; $('composer-suggestions').innerHTML = ''; $('composer-input').focus(); }
-});
-$('composer-suggestions').addEventListener('click', e => { const button = e.target.closest('button[data-suggestion]'); if (button) chooseComposerSuggestion(Number(button.dataset.suggestion)); });
 $('composer').addEventListener('submit', e => {
   e.preventDefault();
-  composerSuggestions = []; $('composer-suggestions').innerHTML = '';
+  composerUI.clearSuggestions();
   const query = $('composer-input').value.trim();
   if (!query) { showComposerResult('Enter a project, entry, #tag, @project or /help.'); return; }
   if (query.startsWith('/')) {
@@ -464,7 +436,6 @@ document.addEventListener('click', e => {
   if (button.dataset.minimize) { const id = button.dataset.minimize; prefs.minimized = prefs.minimized.includes(id) ? prefs.minimized.filter(x => x !== id) : [...prefs.minimized, id]; savePrefs(); render(); document.querySelector(`[data-minimize="${CSS.escape(id)}"]`)?.focus(); }
   if (button.dataset.tab) { detailTab = button.dataset.tab; render(); document.querySelector(`[data-tab="${CSS.escape(detailTab)}"]`)?.focus(); }
   if (button.dataset.remove) { const p = current(), key = button.dataset.kind; if (p && ['items','resources','evidence','links'].includes(key)) { p[key] = p[key].filter(x => x.id !== button.dataset.remove); homePins = homePins.filter(item => resolveHomePin(item)); try { localStorage.setItem(HOME_PINS_KEY,JSON.stringify(homePins)); } catch {} saveData(); } }
-  if (button.dataset.attachment !== undefined) { attachments.splice(Number(button.dataset.attachment), 1); renderAttachments(); showComposerResult('Attachment removed. No files have been uploaded.'); }
 });
 document.addEventListener('submit', e => {
   const form = e.target;
