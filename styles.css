@@ -168,8 +168,6 @@ body { background:#f5f6fa; }
 .composer-submit { margin-left:auto; width:28px; height:28px; padding:0; border:0; border-radius:6px; background:var(--blue); color:white; }
 .composer-note { margin:5px 3px 0; color:#68748a; font-size:10px; }
 .composer-attachments { display:flex; flex-wrap:wrap; gap:4px; }
-.attachment-chip { display:inline-flex; align-items:center; gap:3px; max-width:100%; padding:2px 4px; background:#edf0fa; border-radius:5px; font-size:10px; overflow-wrap:anywhere; }
-.attachment-chip button { border:0; background:transparent; padding:0 2px; }
 @media(max-width:1050px) { #workbench { min-height:0; } #context.cockpit-workbench__context { min-height:330px; } .context-welcome { margin-top:15px; } }
 @media(max-width:700px) { .site-header { grid-template-columns:1fr auto; gap:7px; padding:8px 12px; } .global-search { grid-column:1/-1; grid-row:2; width:100%; } .header-actions { grid-column:2; grid-row:1; gap:3px; } .header-actions #new-project span { display:none; } .header-actions > button { width:32px; } #content.cockpit-workbench__content { padding:15px; } .content-head { align-items:start; } .overview-stats { gap:5px; } .overview-stats div { padding:8px; } .overview-stats strong { font-size:17px; } }
 @media(max-width:420px) { .content-head { display:block; } .layout-picker { margin-top:11px; } .cards { grid-template-columns:1fr; } .project-card { padding:10px; } }

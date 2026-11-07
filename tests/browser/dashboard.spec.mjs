@@ -86,6 +86,7 @@ test('tabbed Explorer keeps independent views, opens local records, and exposes 
 });
 
 test('refined workspace searches locally, previews commands and keeps project data intact', async ({page}) => {
+  await page.setViewportSize({width:1280,height:800});
   await page.goto('/');
   await expect(page.getByRole('complementary',{name:'Conversation and search'})).toBeVisible();
   await page.getByRole('button',{name:'New project'}).first().click();
@@ -109,6 +110,12 @@ test('refined workspace searches locally, previews commands and keeps project da
   await page.getByRole('button',{name:'Search workspace'}).click();
   await expect(page.locator('#composer-results')).toContainText('No CLI connection');
   await page.locator('#composer-files').setInputFiles({name:'notes.txt',mimeType:'text/plain',buffer:Buffer.from('local context')});
+  await expect(page.locator('#composer-attachments')).toContainText('notes.txt (1 KB)');
+  await page.screenshot({path:'docs/screenshots/propro-composer-1280.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({path:'docs/screenshots/propro-composer-390.png',fullPage:true});
+  await page.setViewportSize({width:1280,height:800});
   await expect(page.getByRole('button',{name:'Remove notes.txt'})).toBeVisible();
   await page.getByRole('button',{name:'Remove notes.txt'}).click();
   await expect(page.getByRole('button',{name:'Remove notes.txt'})).toHaveCount(0);
