@@ -3,6 +3,7 @@
 const {app, BrowserWindow, dialog, shell} = require('electron');
 const {spawn} = require('node:child_process');
 const {join} = require('node:path');
+const {waitForFiles, startupMessage, pause} = require('./startup.cjs');
 
 const PORT = 8765;
 const URL = `http://127.0.0.1:${PORT}/`;
@@ -15,7 +16,7 @@ else app.on('second-instance', () => {
   window?.focus();
 });
 
-function startServer() {
+function startServerOnce() {
   return new Promise((resolve, reject) => {
     const script = join(__dirname, '..', 'server.mjs');
     const child = spawn(process.execPath, [script], {
@@ -49,6 +50,18 @@ function startServer() {
   });
 }
 
+async function startServer() {
+  await waitForFiles(join(__dirname, '..'));
+  const deadline = Date.now() + 15000;
+  for (;;) {
+    try { return await startServerOnce(); }
+    catch (error) {
+      if (!/ERR_MODULE_NOT_FOUND|ENOENT/.test(String(error.message)) || Date.now() >= deadline) throw error;
+      await pause(300);
+    }
+  }
+}
+
 function openWindow() {
   window = new BrowserWindow({
     width: 1280,
@@ -74,7 +87,8 @@ app.whenReady().then(async () => {
     server = await startServer();
     openWindow();
   } catch (error) {
-    dialog.showErrorBox('ProPro could not start', `Port ${PORT} must be free. ${error.message}`);
+    console.error(error);
+    dialog.showErrorBox('ProPro could not start', startupMessage(error, PORT));
     app.quit();
   }
 });
