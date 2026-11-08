@@ -505,3 +505,13 @@ $('portfolio-form').onsubmit=event=>{event.preventDefault();if(loadError)return;
 document.addEventListener('submit',event=>{if(event.target.id!=='membership-form')return;event.preventDefault();if(loadError||!current())return;assignPortfolio(data,current().id,event.target.elements.portfolio.value||null);saveData();$('membership-form')?.querySelector('select')?.focus();notice('Portfolio membership saved.')});
 render();
 if (loadError) { $('new-project').disabled = true; notice('Saved data could not be read. Import a valid backup; existing browser data was left untouched.'); }
+// Keep the suggestion menu within the available context area as panes resize.
+if (typeof ResizeObserver === 'function') {
+  const composerBounds = new ResizeObserver(() => {
+    const pane = $('context').getBoundingClientRect(), composer = $('composer').getBoundingClientRect();
+    const header = $('context').querySelector('.context-head').getBoundingClientRect();
+    $('composer-suggestions').style.maxHeight = Math.max(24, Math.floor(composer.top - pane.top - header.height - 8)) + 'px';
+  });
+  composerBounds.observe($('context'));
+  composerBounds.observe($('composer'));
+}
