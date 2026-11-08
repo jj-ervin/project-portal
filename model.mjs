@@ -5,6 +5,17 @@ const DATA_KEY = 'propro-project-portal-v1';
 const PREF_KEY = 'propro-dashboard-prefs-v1';
 const CAPS = ['Construction', 'Research', 'Freelance', 'Development', 'Creative', 'Business', 'Personal'];
 const MODES = ['large', 'mini', 'grid', 'list'];
+const RESOURCE_KINDS = ['file', 'folder', 'url', 'application'];
+function validateConnection(connection) {
+  if (!connection || !RESOURCE_KINDS.includes(connection.kind) || typeof connection.locator !== 'string' || connection.locator.length > 2048 || /[\u0000-\u001f\u007f]/.test(connection.locator)) throw Error('Invalid resource connection');
+  if (connection.kind === 'url') {
+    let url; try { url = new URL(connection.locator); } catch { throw Error('Invalid resource URL'); }
+    if (!['https:', 'http:'].includes(url.protocol) || !url.hostname || url.username || url.password) throw Error('Invalid resource URL');
+  } else if (!/^[a-zA-Z]:\\[^\r\n]+$/.test(connection.locator)) throw Error('Use an absolute Windows path');
+  if (connection.kind === 'application' && !/\.(exe|lnk)$/i.test(connection.locator)) throw Error('Use an .exe or .lnk application');
+  if (Object.keys(connection).some(key => !['kind','locator'].includes(key))) throw Error('Invalid resource connection');
+  return connection;
+}
 const emptyData = () => ({version: 1, projects: []});
 const newProject = (id, name, capabilities = []) => ({id, name, capabilities, items: [], resources: [], evidence: [], links: []});
 const newPortfolio = (id, name) => ({version:1, id, name});
@@ -31,6 +42,7 @@ function validateData(value) {
     if (p.portfolioId !== undefined && p.portfolioId !== null && !portfolioIds.has(p.portfolioId)) throw Error('Invalid portfolio membership');
     for (const key of ['items','resources','evidence','links']) {
       if (p[key].length > 1000 || !p[key].every(x => x && typeof x.id === 'string' && x.id && typeof x.title === 'string' && x.title.length <= 1000)) throw Error('Invalid ' + key);
+      if (key === 'resources') for (const entry of p[key]) if (entry.connection !== undefined) validateConnection(entry.connection);
     }
   }
   return value;
@@ -40,5 +52,5 @@ function readPrefs(raw, ids = []) {
   const valid = new Set(ids);
   return {mode: MODES.includes(p.mode) ? p.mode : 'large', minimized: Array.isArray(p.minimized) ? [...new Set(p.minimized.filter(id => valid.has(id)))] : []};
 }
-root.ProProModel = Object.freeze({DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, newPortfolio, portfolios, assignPortfolio, validateData, readPrefs});
+root.ProProModel = Object.freeze({DATA_KEY, PREF_KEY, CAPS, MODES, RESOURCE_KINDS, validateConnection, emptyData, newProject, newPortfolio, portfolios, assignPortfolio, validateData, readPrefs});
 })(globalThis);

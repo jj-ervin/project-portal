@@ -14,6 +14,7 @@ Pane follow-up (November 7, 2026): desktop pane resizing now redistributes a fix
 
 - [Product charter](docs/PRODUCT-CHARTER.md)
 - [ProPro-001 scope and exit criteria](docs/PROPRO-001.md)
+- [Connected Resource architecture and Level 1 behavior](docs/CONNECTED-RESOURCES.md)
 
 Development strategy: **A → C** — start with universal portfolio visibility and management, then expand toward integrated specialist workspaces. Keep the MVP small and evaluate existing solutions before committing to a stack.
 

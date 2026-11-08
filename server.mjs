@@ -2,7 +2,12 @@ import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
+import {stat} from 'node:fs/promises';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 import {createChatService} from './chat-service.mjs';
+import './model.mjs';
+const runFile = promisify(execFile);
 const root = dirname(fileURLToPath(import.meta.url));
 const chat = await createChatService({file:process.env.PROPRO_CHAT_STORE||join(root,'.propro','agents.json'),cwd:root});
 const routes = new Map([
@@ -18,6 +23,21 @@ const server=createServer(async (req, res) => {
   const url=new URL(req.url,'http://localhost');
   const json=(data,status=200)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(data))};
   if(!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(req.headers.host||''))return json({error:'Host not allowed'},403);
+  if(url.pathname==='/api/resources/open') {
+    if(req.method!=='POST')return json({error:'Method not allowed'},405);
+    if(req.headers.origin!==`http://${req.headers.host}`)return json({error:'Origin not allowed'},403);
+    if(process.platform!=='win32')return json({error:'Local opening requires Windows'},501);
+    try {
+      req.setEncoding('utf8');let body='',size=0;
+      for await(const chunk of req){size+=Buffer.byteLength(chunk);if(size>4096)return json({error:'Request too large'},413);body+=chunk}
+      const connection=globalThis.ProProModel.validateConnection(JSON.parse(body));
+      if(connection.kind==='url')return json({error:'Open URLs in the browser'},400);
+      const info=await stat(connection.locator);
+      if(connection.kind==='folder' ? !info.isDirectory() : !info.isFile())return json({error:'Resource type does not match path'},400);
+      await runFile('powershell.exe',['-NoProfile','-NonInteractive','-File',join(root,'open-resource.ps1'),connection.locator],{windowsHide:true,timeout:10000});
+      return json({opened:true});
+    } catch(error) {return json({error:error.code==='ENOENT'?'Resource was not found':'Could not open this resource'},400)}
+  }
   if(url.pathname.startsWith('/api/chat/')){try{
     if(req.method==='POST'&&req.headers.origin!==`http://${req.headers.host}`)return json({error:'Origin not allowed'},403);
     if(req.method==='GET'&&url.pathname==='/api/chat/sessions')return json(chat.list(url.searchParams.get('environment')||'codex'));

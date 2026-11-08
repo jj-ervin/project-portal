@@ -132,6 +132,10 @@ body { background:#f5f6fa; }
 .detail-panel { margin-top:18px; padding:16px; border-radius:10px; }
 .detail-head h2 { font-size:17px; }
 .detail-tabs button,.detail-body button,.rename-form button { font-size:12px; border-radius:6px; padding:5px 8px; }
+.entry-form select { padding:.5rem; border:1px solid #9fb0c2; border-radius:8px; background:#fff; }
+.entry-list li { align-items:center; flex-wrap:wrap; }
+.entry-list li > span { flex:1 1 220px; min-width:0; }
+.entry-list small { display:block; color:var(--muted); overflow-wrap:anywhere; }
 .empty { padding:25px; border-radius:10px; }
 #context.cockpit-workbench__context { display:flex; flex-direction:column; min-width:0; background:#fff; }
 #context[hidden] { display:none!important; }

@@ -1,6 +1,6 @@
 'use strict';
 // Classic script loading also supports opening index.html directly from disk.
-const {DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, newPortfolio, portfolios, assignPortfolio, validateData, readPrefs} = globalThis.ProProModel;
+const {DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, newPortfolio, portfolios, assignPortfolio, validateConnection, validateData, readPrefs} = globalThis.ProProModel;
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -242,7 +242,7 @@ function renderWorkspaceTabs() {
     const project = data.projects.find(item => item.id === active.projectId);
     const item = project?.[active.entryKind]?.find(value => value.id === active.entryId);
     const label = {items:'Task',resources:'Resource',evidence:'Evidence',links:'Link'}[active.entryKind];
-    workspaceExtra.innerHTML = `<p class="eyebrow">${esc(label || 'ENTRY')} / ${esc(project?.name || 'Project')}</p><h2>${esc(item?.title || 'Entry unavailable')}</h2><p class="muted">${item ? 'This is a local project entry. Connected assets and document previews can be added here later.' : 'This entry is no longer in the project.'}</p><button type="button" data-select="${esc(active.projectId)}">Open project</button>`;
+    workspaceExtra.innerHTML = `<p class="eyebrow">${esc(label || 'ENTRY')} / ${esc(project?.name || 'Project')}</p><h2>${esc(item?.title || 'Entry unavailable')}</h2><p class="muted">${item?.connection ? `${esc(item.connection.kind)} · ${esc(item.connection.locator)}` : item ? 'This is a local project entry.' : 'This entry is no longer in the project.'}</p>${item?.connection ? `<button type="button" data-open-resource="${esc(item.id)}" data-resource-project="${esc(project.id)}">Open resource</button>` : ''}<button type="button" data-select="${esc(active.projectId)}">Open project</button>`;
   }
 }
 function commandPreview(command) {
@@ -345,7 +345,19 @@ function toggleHomePin(key) {
 function openHomePin(key) {
   const pin = resolveHomePin(key);
   if (pin?.kind === 'project') openProjectTab(pin.project.id);
-  if (pin?.kind === 'entry') openEntryTab(pin.project.id,pin.entryKind,pin.entry.id);
+  if (pin?.kind === 'entry' && pin.entry.connection) openResource(pin.entry);
+  else if (pin?.kind === 'entry') openEntryTab(pin.project.id,pin.entryKind,pin.entry.id);
+}
+async function openResource(entry) {
+  let connection;
+  try { connection = validateConnection(entry.connection); } catch { notice('This resource destination is invalid.'); return; }
+  if (connection.kind === 'url') { window.open(connection.locator, '_blank', 'noopener,noreferrer'); return; }
+  if (location.protocol !== 'http:') { notice('Run npm start on Windows to open local paths.'); return; }
+  try {
+    const response = await fetch('/api/resources/open', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(connection)});
+    const result = await response.json();
+    notice(response.ok ? `Opened ${entry.title}.` : result.error || 'Could not open resource.');
+  } catch { notice('Local opening is unavailable. Run npm start on Windows.'); }
 }
 function renderAttachments() {
   $('composer-attachments').innerHTML = attachments.map((file, index) => `<span class="attachment-chip">${esc(file.name)} <button type="button" data-attachment="${index}" aria-label="Remove ${esc(file.name)}">×</button></span>`).join('');
@@ -412,7 +424,7 @@ function detailHTML(p) {
   if (detailTab === 'Overview') body = `<form id="membership-form" class="portfolio-membership"><label>Portfolio<select name="portfolio" aria-label="Portfolio membership"><option value="">Unassigned</option>${portfolios(data).map(portfolio=>`<option value="${esc(portfolio.id)}" ${portfolio.id===p.portfolioId?'selected':''}>${esc(portfolio.name)}</option>`).join('')}</select></label><button type="submit">Save membership</button></form><p class="muted">Keep this project flexible. Capabilities help describe the work; shared entries are always available.</p><form id="caps-form"><fieldset><legend>Capabilities</legend><div class="cap-options">${CAPS.map(c => `<label><input type="checkbox" name="cap" value="${c}" ${p.capabilities.includes(c) ? 'checked':''}>${c}</label>`).join('')}</div></fieldset><button class="primary" type="submit">Save capabilities</button></form>`;
   else if (['Tasks','Resources','Evidence','Links'].includes(detailTab)) {
     const key = {Tasks:'items',Resources:'resources',Evidence:'evidence',Links:'links'}[detailTab];
-    body = `<form id="entry-form" class="entry-form"><label>New ${detailTab.toLowerCase()} entry<input name="title" maxlength="1000" required></label><button class="primary" type="submit">Add entry</button></form><ul class="entry-list">${p[key].map(x => { const pinKey = `entry:${p.id}:${key}:${x.id}`; return `<li><span>${esc(x.title)}</span><button type="button" data-pin-home="${esc(pinKey)}" aria-label="${homePins.includes(pinKey) ? `Pinned ${esc(x.title)}; unpin from Home` : `Pin ${esc(x.title)} to Home`}" aria-pressed="${homePins.includes(pinKey)}">${homePins.includes(pinKey) ? 'Pinned' : 'Pin'}</button><button type="button" data-remove="${esc(x.id)}" data-kind="${key}" aria-label="Remove ${esc(x.title)}">Remove</button></li>`; }).join('')}</ul>${p[key].length ? '' : '<p class="muted">No entries yet.</p>'}`;
+    body = `<form id="entry-form" class="entry-form"><label>New ${detailTab.toLowerCase()} entry<input name="title" maxlength="1000" required></label>${key === 'resources' ? '<label>Destination type<select name="resourceKind"><option value="">Title only</option><option value="file">Local file</option><option value="folder">Local folder</option><option value="url">Web URL</option><option value="application">Windows application</option></select></label><label>URL or absolute Windows path<input name="locator" maxlength="2048" placeholder="https://example.com or C:\\path\\file.txt"></label>' : ''}<button class="primary" type="submit">Add entry</button></form><ul class="entry-list">${p[key].map(x => { const pinKey = `entry:${p.id}:${key}:${x.id}`; return `<li><span>${esc(x.title)}${x.connection ? `<small>${esc(x.connection.kind)} · ${esc(x.connection.locator)}</small>` : ''}</span>${x.connection ? `<button type="button" data-open-resource="${esc(x.id)}" data-resource-project="${esc(p.id)}" aria-label="Open ${esc(x.title)}">Open</button>` : ''}<button type="button" data-pin-home="${esc(pinKey)}" aria-label="${homePins.includes(pinKey) ? `Pinned ${esc(x.title)}; unpin from Home` : `Pin ${esc(x.title)} to Home`}" aria-pressed="${homePins.includes(pinKey)}">${homePins.includes(pinKey) ? 'Pinned' : 'Pin'}</button><button type="button" data-remove="${esc(x.id)}" data-kind="${key}" aria-label="Remove ${esc(x.title)}">Remove</button></li>`; }).join('')}</ul>${p[key].length ? '' : '<p class="muted">No entries yet.</p>'}`;
   } else body = `<p class="muted">${esc(detailTab)} is enabled. A specialist editor is not available yet; use the shared entries above.</p>`;
   return `<section class="detail-panel" aria-label="Selected project"><div class="detail-head"><div><p class="eyebrow">Selected project</p><h2 id="detail-heading" tabindex="-1">${esc(p.name)}</h2></div><form id="rename-form" class="rename-form"><label>Rename project<input name="name" maxlength="200" required value="${esc(p.name)}"></label><button type="submit">Rename</button></form></div><div class="detail-tabs" role="group" aria-label="Project sections">${tabs.map(t => `<button type="button" data-tab="${esc(t)}" aria-pressed="${t === detailTab}">${esc(t)}</button>`).join('')}</div><div class="detail-body">${body}</div></section>`;
 }
@@ -473,6 +485,7 @@ document.addEventListener('click', e => {
   if (button.dataset.new !== undefined || button.id === 'new-project') { $('project-dialog').showModal(); $('project-form').elements.name.focus(); }
   if (button.dataset.pinHome) { toggleHomePin(button.dataset.pinHome); return; }
   if (button.dataset.openPin) { openHomePin(button.dataset.openPin); return; }
+  if (button.dataset.openResource) { const entry = data.projects.find(p => p.id === button.dataset.resourceProject)?.resources.find(x => x.id === button.dataset.openResource); if (entry) openResource(entry); return; }
   if (button.dataset.mode && MODES.includes(button.dataset.mode)) { prefs.mode = button.dataset.mode; savePrefs(); render(); }
   if (button.dataset.select) select(button.dataset.select);
   if (button.dataset.minimize) { const id = button.dataset.minimize; prefs.minimized = prefs.minimized.includes(id) ? prefs.minimized.filter(x => x !== id) : [...prefs.minimized, id]; savePrefs(); render(); document.querySelector(`[data-minimize="${CSS.escape(id)}"]`)?.focus(); }
@@ -487,7 +500,7 @@ document.addEventListener('submit', e => {
   if (form.id === 'project-form') { const name = form.elements.name.value.trim(); if (!name) return; const p = newProject(uid(), name.slice(0,200), [...form.querySelectorAll('input[name="cap"]:checked')].map(x => x.value)); if(portfolioFilter && portfolioFilter!=='__unassigned__')p.portfolioId=portfolioFilter; data.projects.push(p); detailTab = 'Overview'; openProjectTab(p.id); saveData(); form.reset(); $('project-dialog').close(); notice('Project created and saved locally.'); $('detail-heading')?.focus(); }
   if (form.id === 'rename-form') { const name = form.elements.name.value.trim(); if (name && current()) { current().name = name.slice(0,200); saveData(); notice('Project renamed.'); } }
   if (form.id === 'caps-form' && current()) { current().capabilities = [...form.querySelectorAll('input:checked')].map(x => x.value); saveData(); }
-  if (form.id === 'entry-form' && current()) { const key = {Tasks:'items',Resources:'resources',Evidence:'evidence',Links:'links'}[detailTab], title = form.elements.title.value.trim(); if (key && title) { current()[key].push({id:uid(),title}); saveData(); } }
+  if (form.id === 'entry-form' && current()) { const key = {Tasks:'items',Resources:'resources',Evidence:'evidence',Links:'links'}[detailTab], title = form.elements.title.value.trim(); if (key && title) { const entry = {id:uid(),title}; if (key === 'resources') { const kind = form.elements.resourceKind.value, locator = form.elements.locator.value.trim(); if (kind || locator) { try { entry.connection = validateConnection({kind,locator}); } catch(error) { notice(error.message); return; } } } current()[key].push(entry); saveData(); } }
 });
 $('cancel-project').onclick = () => $('project-dialog').close();
 $('export').onclick = () => { const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'}), url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = 'propro-projects.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notice('Exported project backup.'); };
