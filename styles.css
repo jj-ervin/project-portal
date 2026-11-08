@@ -134,6 +134,16 @@ body { background:#f5f6fa; }
 .detail-tabs button,.detail-body button,.rename-form button { font-size:12px; border-radius:6px; padding:5px 8px; }
 .entry-form select { padding:.5rem; border:1px solid #9fb0c2; border-radius:8px; background:#fff; }
 .entry-list li { align-items:center; flex-wrap:wrap; }
+.task-summary { padding:10px 12px; border-radius:8px; background:#f2f6fc; }
+.task-summary p { margin:4px 0 0; overflow-wrap:anywhere; }
+.task-list .task-row { align-items:center; }
+.task-copy { display:grid; gap:3px; min-width:0; overflow-wrap:anywhere; }
+.task-copy small { color:var(--muted); }
+.task-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.task-associations { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:20px; }
+.task-associations section { min-width:0; }
+.task-associations li { overflow-wrap:anywhere; }
+@media(max-width:600px) { .task-associations { grid-template-columns:1fr; } }
 .entry-list li > span { flex:1 1 220px; min-width:0; }
 .entry-list small { display:block; color:var(--muted); overflow-wrap:anywhere; }
 .empty { padding:25px; border-radius:10px; }

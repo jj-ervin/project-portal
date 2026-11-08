@@ -364,14 +364,14 @@ test('project actions and independent card state survive mode changes and reload
   }
   await page.getByRole('button',{name:'Open Garden'}).click();
   await page.getByRole('group',{name:'Project sections'}).getByRole('button',{name:'Tasks'}).click();
-  await page.getByLabel('New tasks entry').fill('Plant seeds');
-  await page.getByRole('button',{name:'Add entry'}).click();
+  await page.getByLabel('Task title').fill('Plant seeds');
+  await page.getByRole('button',{name:'Add task'}).click();
   await page.reload();
   await expect(page.getByRole('button',{name:'Expand Garden',exact:true})).toBeVisible();
   await expect(page.getByRole('group',{name:'View'}).getByRole('button',{name:'Large tiles'})).toHaveAttribute('aria-pressed','true');
   await page.getByRole('button',{name:'Open Garden'}).click();
   await page.getByRole('group',{name:'Project sections'}).getByRole('button',{name:'Tasks'}).click();
-  await expect(page.getByRole('region',{name:'Selected project'}).getByText('Plant seeds')).toBeVisible();
+  await expect(page.getByRole('region',{name:'Selected project'}).getByText('Plant seeds',{exact:true})).toBeVisible();
 });
 
 test('existing version 1 data loads and malformed import leaves it intact', async ({page}) => {

@@ -41,3 +41,16 @@ test('connected resources preserve version 1 exports and reject unsafe destinati
  project.resources[0].connection={kind:'url',locator:'file:///C:/secret'};
  assert.throws(()=>validateData(data),/Invalid resource URL/);
 });
+test('task associations and completion round-trip without changing legacy records',()=>{
+ const legacy=newProject('old','Legacy');delete legacy.milestones;delete legacy.deliverables;legacy.items.push({id:'t0',title:'Existing task'});
+ const data={version:1,projects:[legacy,newProject('new','Current')]};
+ data.projects[1].milestones.push({id:'m1',title:'Review'});
+ data.projects[1].deliverables.push({id:'d1',title:'Report'});
+ data.projects[1].items.push({id:'t1',title:'Draft',completed:true,milestoneId:'m1',deliverableId:'d1'});
+ const copy=validateData(JSON.parse(JSON.stringify(data)));
+ assert.deepEqual(copy.projects[0],legacy);
+ assert.equal(copy.projects[1].items[0].completed,true);
+ for(const change of [task=>task.completed='yes',task=>task.milestoneId='missing',task=>task.deliverableId='missing']) {
+   const bad=structuredClone(data);change(bad.projects[1].items[0]);assert.throws(()=>validateData(bad),/Invalid task/);
+ }
+});

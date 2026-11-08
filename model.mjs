@@ -17,7 +17,7 @@ function validateConnection(connection) {
   return connection;
 }
 const emptyData = () => ({version: 1, projects: []});
-const newProject = (id, name, capabilities = []) => ({id, name, capabilities, items: [], resources: [], evidence: [], links: []});
+const newProject = (id, name, capabilities = []) => ({id, name, capabilities, items: [], milestones: [], deliverables: [], resources: [], evidence: [], links: []});
 const newPortfolio = (id, name) => ({version:1, id, name});
 const portfolios = data => data.portfolios || [];
 function assignPortfolio(data, projectId, portfolioId) {
@@ -40,9 +40,20 @@ function validateData(value) {
     if (!p || typeof p.id !== 'string' || !p.id || ids.has(p.id) || typeof p.name !== 'string' || !p.name.trim() || p.name.length > 200 || !Array.isArray(p.capabilities) || !p.capabilities.every(c => CAPS.includes(c)) || !['items','resources','evidence','links'].every(k => Array.isArray(p[k]))) throw Error('Invalid project data');
     ids.add(p.id);
     if (p.portfolioId !== undefined && p.portfolioId !== null && !portfolioIds.has(p.portfolioId)) throw Error('Invalid portfolio membership');
+    for (const key of ['milestones','deliverables']) {
+      if (p[key] === undefined) continue;
+      if (!Array.isArray(p[key]) || p[key].length > 1000 || !p[key].every(x => x && typeof x.id === 'string' && x.id && typeof x.title === 'string' && x.title.trim() && x.title.length <= 1000) || new Set(p[key].map(x => x.id)).size !== p[key].length) throw Error('Invalid ' + key);
+    }
+    const milestoneIds = new Set((p.milestones || []).map(x => x.id));
+    const deliverableIds = new Set((p.deliverables || []).map(x => x.id));
     for (const key of ['items','resources','evidence','links']) {
       if (p[key].length > 1000 || !p[key].every(x => x && typeof x.id === 'string' && x.id && typeof x.title === 'string' && x.title.length <= 1000)) throw Error('Invalid ' + key);
       if (key === 'resources') for (const entry of p[key]) if (entry.connection !== undefined) validateConnection(entry.connection);
+      if (key === 'items') for (const task of p.items) {
+        if (task.completed !== undefined && typeof task.completed !== 'boolean') throw Error('Invalid task completion');
+        if (task.milestoneId !== undefined && task.milestoneId !== null && !milestoneIds.has(task.milestoneId)) throw Error('Invalid task milestone');
+        if (task.deliverableId !== undefined && task.deliverableId !== null && !deliverableIds.has(task.deliverableId)) throw Error('Invalid task deliverable');
+      }
     }
   }
   return value;
