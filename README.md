@@ -19,6 +19,8 @@ Development strategy: **A → C** — start with universal portfolio visibility 
 
 ## Run the dashboard
 
+Ollama follow-up (November 8, 2026): the right pane now connects to installed local models, with a model selector, streaming replies, persistent history and independent drafts alongside Codex. See [Ollama conversations](docs/OLLAMA-CONVERSATIONS.md). Ollama currently has chat and selected-project context only, with no file or command tools.
+
 Use Node 22 or newer and run `npm ci` once to install the pinned local Cockpit GUI package. Then either open `index.html` directly or run `npm start` and visit http://localhost:8000. The app works offline after installation. Project data stays in the browser under the original `propro-project-portal-v1` key. A `file://` page and `http://localhost:8000` have separate browser storage; use Export JSON and Import JSON to move projects between them.
 
 Run `npm test` and `npm run test:browser` for model, browser, accessibility and viewport checks. See [PROP-CKP-001B implementation record](docs/PROP-CKP-001B-IMPLEMENTATION.md) for ownership, provenance and open acceptance gates.

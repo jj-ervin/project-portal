@@ -245,7 +245,7 @@ body { background:#f5f6fa; }
  body{display:flex;flex-direction:column;height:100dvh}
  .site-header,.status{flex:none}
  #workbench,#workbench.has-bottom{flex:1 1 0;height:auto;min-height:0;overflow:hidden}
- #workbench.has-bottom{grid-template-rows:minmax(0,1fr) 6px min(var(--cockpit-bottom-height,240px),max(160px,calc(100% - 286px)))}
+ #workbench.has-bottom{grid-template-rows:minmax(0,1fr) 6px min(var(--cockpit-bottom-height,240px),max(160px,calc(100% - 320px)))}
  #content.cockpit-workbench__content{min-height:0;overflow:auto}
  #workbench.has-bottom>#bottom-panel{overflow:hidden}
 }
@@ -264,3 +264,5 @@ body { background:#f5f6fa; }
 .agent-message.user{background:#f5f7fc;padding:9px;border-radius:7px;margin-top:10px}
 #agent-status{font-size:10px;color:#65728a;padding:5px 0}
 #context.agent-connected .context-welcome,#context.agent-connected #composer-results,#context.agent-connected .context-eyebrow,#context.agent-connected .composer-tools .attach-button,#context.agent-connected #composer-scope,#context.agent-connected #composer-suggestions{display:none}
+
+.agent-environments{white-space:nowrap;overflow-x:auto}.agent-environments button{flex:0 0 auto;white-space:nowrap}.agent-model-tools{display:flex;flex:none;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border)}.agent-model-tools[hidden]{display:none}.agent-model-tools select{flex:1;min-width:0;max-width:100%;font-size:11px;padding:4px}.agent-model-tools button{font-size:10px;padding:4px 6px}

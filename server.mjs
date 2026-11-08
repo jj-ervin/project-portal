@@ -20,10 +20,11 @@ const server=createServer(async (req, res) => {
   if(!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(req.headers.host||''))return json({error:'Host not allowed'},403);
   if(url.pathname.startsWith('/api/chat/')){try{
     if(req.method==='POST'&&req.headers.origin!==`http://${req.headers.host}`)return json({error:'Origin not allowed'},403);
-    if(req.method==='GET'&&url.pathname==='/api/chat/sessions')return json(chat.list());
+    if(req.method==='GET'&&url.pathname==='/api/chat/sessions')return json(chat.list(url.searchParams.get('environment')||'codex'));
     if(req.method==='GET'&&url.pathname==='/api/chat/session')return json(chat.get(url.searchParams.get('id')));
-    if(req.method==='POST'&&url.pathname==='/api/chat/sessions')return json(await chat.create(),201);
-    if(req.method==='POST'){req.setEncoding('utf8');let text='',size=0;for await(const chunk of req){size+=Buffer.byteLength(chunk);if(size>65536)return json({error:'Request too large'},413);text+=chunk}let body;try{body=JSON.parse(text);if(!body||typeof body!=='object'||Array.isArray(body))throw Error()}catch{return json({error:'Invalid request'},400)}
+    if(req.method==='GET'&&url.pathname==='/api/chat/ollama')return json(await chat.models());
+    if(req.method==='POST'){req.setEncoding('utf8');let text='',size=0;for await(const chunk of req){size+=Buffer.byteLength(chunk);if(size>65536)return json({error:'Request too large'},413);text+=chunk}let body;try{body=text.trim()?JSON.parse(text):{};if(!body||typeof body!=='object'||Array.isArray(body))throw Error()}catch{return json({error:'Invalid request'},400)}
+      if(url.pathname==='/api/chat/sessions')return json(await chat.create({environment:body.environment,model:body.model}),201);
       if(url.pathname==='/api/chat/send')return json(await chat.send(body.sessionId,body.message,body.context),202);
       if(url.pathname==='/api/chat/stop')return json(await chat.cancel(body.sessionId));
     }return json({error:'Not found'},404);

@@ -44,4 +44,6 @@ Verified locally: the new browser regression reproduced the original composer ov
 
 ## Owner correction and connected session follow-up — November 7, 2026
 
+November 8 follow-up: Ollama now joins Codex as a connected right-pane environment, using separate saved conversations and drafts. Local model selection, streaming, Stop and offline recovery are implemented; file/terminal tools remain absent from Ollama. See [Ollama conversations](OLLAMA-CONVERSATIONS.md). The bottom pane's terminal and Lasso proposals remain future work.
+
 The owner found that the first containment fix made the page grow as the bottom border was dragged upward and left an oversized input. That behavior is superseded: desktop panes now share a fixed viewport budget, the bottom height is clamped through the package's public API, and the composer starts at one line. The right pane now has a real read-only Codex connection, persistent native conversations, independent drafts and Local Search switching. See `docs/AGENT-CONVERSATIONS.md` for actual behavior and limits. Claude is unavailable, not simulated. Lasso, a real terminal and media utilities remain proposals.

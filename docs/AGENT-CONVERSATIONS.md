@@ -1,5 +1,7 @@
 # Right-pane agent conversations
 
+Current follow-up, November 8, 2026: Ollama is also connected, with downloaded-model selection and separate persistent conversations and drafts. See [local Ollama conversations](OLLAMA-CONVERSATIONS.md) for the implemented scope and current verification counts. The original Codex implementation record below remains applicable to Codex.
+
 Date: November 7, 2026. Local implementation candidate; owner review remains open.
 
 ## Current connection

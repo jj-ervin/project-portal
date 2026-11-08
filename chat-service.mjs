@@ -4,6 +4,7 @@ import {readFile,mkdir,writeFile,rename} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {homedir} from 'node:os';
 import {randomUUID} from 'node:crypto';
+import {discoverOllama,runOllama} from './ollama.mjs';
 const uuid=/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 export function commandArgs(nativeId){if(nativeId!==undefined&&(typeof nativeId!=='string'||!uuid.test(nativeId)))throw Error('Invalid native conversation identity');const args=['exec','--ignore-user-config','--sandbox','read-only','-c','approval_policy="never"'];return nativeId?[...args,'resume','--json',nativeId,'-']:[...args,'--json','--color','never','-'];}
 export function runCodex({nativeId,prompt,cwd,onThread=()=>{},onProgress=()=>{},launch=spawn}){
@@ -26,9 +27,9 @@ This connection is read-only. You may discuss the supplied selected-project cont
 Selected project context (only this project, or null for no selected project): ${JSON.stringify(context)}
 User message:
 ${message}`;}
-export async function createChatService({file,cwd,runner=runCodex}){
+export async function createChatService({file,cwd,runner=runCodex,ollamaRunner=runOllama,discover=discoverOllama}){
  let state={version:1,sessions:[]},busy=null,queue=Promise.resolve();
- try{state=JSON.parse(await readFile(file,'utf8'));if(state.version!==1||!Array.isArray(state.sessions)||state.sessions.length>100||new Set(state.sessions.map(s=>s?.id)).size!==state.sessions.length||state.sessions.some(s=>!s||!uuid.test(s.id)||s.environment!=='codex'||typeof s.title!=='string'||!Array.isArray(s.messages)||s.messages.length>200||s.messages.some(m=>!m||!['user','assistant'].includes(m.role)||typeof m.text!=='string')||(s.nativeId!==undefined&&(typeof s.nativeId!=='string'||!uuid.test(s.nativeId)))||!['idle','running','failed','cancelled','interrupted'].includes(s.status)))throw Error('Invalid conversation store')}catch(error){if(error.code!=='ENOENT')throw error}
+ try{state=JSON.parse(await readFile(file,'utf8'));if(state.version!==1||!Array.isArray(state.sessions)||state.sessions.length>100||new Set(state.sessions.map(s=>s?.id)).size!==state.sessions.length||state.sessions.some(s=>!s||!uuid.test(s.id)||!['codex','ollama'].includes(s.environment)||(s.environment==='ollama'&&(typeof s.model!=='string'||!s.model||s.model.length>200||s.nativeId!==undefined))||typeof s.title!=='string'||!Array.isArray(s.messages)||s.messages.length>200||s.messages.some(m=>!m||!['user','assistant'].includes(m.role)||typeof m.text!=='string')||(s.nativeId!==undefined&&(typeof s.nativeId!=='string'||!uuid.test(s.nativeId)))||!['idle','running','failed','cancelled','interrupted'].includes(s.status)))throw Error('Invalid conversation store')}catch(error){if(error.code!=='ENOENT')throw error}
  for(const s of state.sessions)if(s.status==='running'){s.status='interrupted';s.progress='Interrupted by server restart. Send a message to continue.'}
  async function persist(){const serialized=JSON.stringify(state,null,2);queue=queue.catch(()=>{}).then(async()=>{await mkdir(dirname(file),{recursive:true});await writeFile(file+'.tmp',serialized);await rename(file+'.tmp',file)});return queue}
  await persist();
@@ -36,21 +37,23 @@ export async function createChatService({file,cwd,runner=runCodex}){
  const publicSession=s=>{const {nativeId,...safe}=s;return structuredClone(safe)};
  return {
  flush:()=>queue,
- list:()=>state.sessions.map(s=>({id:s.id,title:s.title,status:s.status,updatedAt:s.updatedAt})),
+ models:()=>discover(),
+ list:(environment='codex')=>state.sessions.filter(s=>s.environment===environment).map(s=>({id:s.id,environment:s.environment,model:s.model,title:s.title,status:s.status,updatedAt:s.updatedAt})),
  get:id=>publicSession(find(id)),
- async create(){if(state.sessions.length>=100)throw Object.assign(Error('Conversation limit reached (100).'),{status:409});const s={id:randomUUID(),environment:'codex',title:'New conversation',messages:[],status:'idle',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};state.sessions.unshift(s);await persist();return publicSession(s)},
+ async create({environment='codex',model}={}){if(!['codex','ollama'].includes(environment))throw Object.assign(Error('Unknown environment'),{status:400});if(environment==='ollama'){const info=await discover();if(!info.available)throw Object.assign(Error(info.message),{status:503});if(!info.models.some(m=>m.name===model))throw Object.assign(Error('Choose an available downloaded local model.'),{status:400})}if(state.sessions.length>=100)throw Object.assign(Error('Conversation limit reached (100).'),{status:409});const s={id:randomUUID(),environment,...(environment==='ollama'?{model}:{}),title:'New conversation',messages:[],status:'idle',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};state.sessions.unshift(s);await persist();return publicSession(s)},
  async send(id,message,context=null){
   if(typeof message!=='string'||!message.trim()||message.length>16000)throw Object.assign(Error('Enter a message of 1–16000 characters.'),{status:400});
   if(busy)throw Object.assign(Error('An agent turn is already running. Wait or stop it first.'),{status:409});
   const s=find(id);if(s.messages.length>=199)throw Object.assign(Error('Conversation limit reached. Start a new conversation.'),{status:409});
+  if(s.environment==='ollama'){const info=await discover();if(!info.available)throw Object.assign(Error(info.message),{status:503});if(!info.models.some(m=>m.name===s.model))throw Object.assign(Error('This saved model is unavailable. Select another model to start a separate conversation.'),{status:409});if(busy)throw Object.assign(Error('An agent turn is already running. Wait or stop it first.'),{status:409})}
   if(context!==null&&(typeof context!=='object'||Array.isArray(context)||JSON.stringify(context).length>20000))throw Object.assign(Error('Selected-project context is too large or invalid.'),{status:400});
-  const token={id};busy=token;s.status='running';s.progress='Starting local Codex…';s.updatedAt=new Date().toISOString();s.messages.push({role:'user',text:message.trim(),at:s.updatedAt});if(s.title==='New conversation')s.title=message.trim().slice(0,70);
-  try{await persist();token.run=runner({nativeId:s.nativeId,prompt:chatPrompt(message.trim(),context),cwd,onThread:id=>{if(busy===token){s.nativeId=id;persist().catch(()=>{})}},onProgress:p=>{if(busy===token)s.progress=p}});
-  token.run.promise.then(async text=>{if(busy!==token)return;s.messages.push({role:'assistant',text,at:new Date().toISOString()});s.status='idle';s.progress='Response saved';s.updatedAt=new Date().toISOString();await persist();if(busy===token)busy=null}).catch(async error=>{if(busy===token){s.status='failed';s.progress=error.message;busy=null;await persist().catch(()=>{})}});
+  const token={id};busy=token;s.status='running';s.partial='';s.progress=s.environment==='ollama'?'Starting local Ollama…':'Starting local Codex…';s.updatedAt=new Date().toISOString();s.messages.push({role:'user',text:message.trim(),at:s.updatedAt});if(s.title==='New conversation')s.title=message.trim().slice(0,70);
+  try{await persist();const progress=p=>{if(busy===token)s.progress=p};token.run=s.environment==='ollama'?ollamaRunner({model:s.model,history:structuredClone(s.messages),context,onProgress:progress,onPartial:text=>{if(busy===token)s.partial=text}}):runner({nativeId:s.nativeId,prompt:chatPrompt(message.trim(),context),cwd,onThread:id=>{if(busy===token){s.nativeId=id;persist().catch(()=>{})}},onProgress:progress});
+  token.run.promise.then(async text=>{if(busy!==token)return;s.partial='';s.messages.push({role:'assistant',text,at:new Date().toISOString()});s.status='idle';s.progress='Response saved';s.updatedAt=new Date().toISOString();await persist();if(busy===token)busy=null}).catch(async error=>{if(busy===token){s.partial='';s.status='failed';s.progress=error.message;busy=null;await persist().catch(()=>{})}});
   }catch(error){if(busy===token){s.status='failed';s.progress='Could not start or save the conversation.';busy=null;await persist().catch(()=>{})}throw error}
   return publicSession(s);
  },
- async cancel(id){const s=find(id);if(busy?.id===id){const old=busy;busy=null;old.run?.cancel();s.status='cancelled';s.progress='Turn stopped. Earlier messages are preserved.';await persist()}return publicSession(s)},
+ async cancel(id){const s=find(id);if(busy?.id===id){const old=busy;busy=null;old.run?.cancel();s.partial='';s.status='cancelled';s.progress='Turn stopped. Earlier messages are preserved.';await persist()}return publicSession(s)},
  async stop(){if(busy){const id=busy.id;await this.cancel(id)}}
  };
 }

@@ -522,6 +522,6 @@ if (typeof ResizeObserver === 'function') {
 
 window.ProProProjectContext = () => {const p=current();return p?{id:p.id,name:p.name,capabilities:[...p.capabilities],tasks:p.items.slice(0,20).map(i=>i.title.slice(0,500))}:null};
 // Clamp the shared component through its public API rather than growing the page.
-function fitBottomToWindow(){if(innerWidth<=1050)return;const max=Math.min(480,Math.max(160,$('workbench').clientHeight-286));const grip=$('workbench').querySelector('[aria-label="Resize bottom panel"]');grip?.setAttribute('aria-valuemax',String(Math.round(max)));if(workbench.bottomHeight()>max)workbench.setBottomHeight(max)}
+function fitBottomToWindow(){if(innerWidth<=1050)return;const max=Math.min(480,Math.max(160,$('workbench').clientHeight-320));const grip=$('workbench').querySelector('[aria-label="Resize bottom panel"]');grip?.setAttribute('aria-valuemax',String(Math.round(max)));if(workbench.bottomHeight()>max)workbench.setBottomHeight(max)}
 new ResizeObserver(fitBottomToWindow).observe($('workbench'));
 new MutationObserver(fitBottomToWindow).observe($('workbench'),{attributes:true,attributeFilter:['style','class']});
