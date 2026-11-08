@@ -1,6 +1,6 @@
 'use strict';
 // Classic script loading also supports opening index.html directly from disk.
-const {DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, validateData, readPrefs} = globalThis.ProProModel;
+const {DATA_KEY, PREF_KEY, CAPS, MODES, emptyData, newProject, newPortfolio, portfolios, assignPortfolio, validateData, readPrefs} = globalThis.ProProModel;
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -11,6 +11,7 @@ try { const raw = localStorage.getItem(DATA_KEY); if (raw) data = validateData(J
 catch { loadError = true; }
 let prefs = readPrefs(localStorage.getItem(PREF_KEY), data.projects.map(p => p.id));
 let filterQuery = '';
+let portfolioFilter = '', editingPortfolio = null;
 let attachments = [];
 let composerSuggestions = [];
 let workspaceTabs = [];
@@ -33,7 +34,7 @@ const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), e
   {id:'search',label:'Search',glyph:'⌕'}, {id:'conversation',label:'Conversation',glyph:'✦'}
 ], initialActivity:'home', onActivity: id => {
   workbench.activate(id);
-  if (id === 'home') { detailTab = 'Overview'; filterQuery = ''; $('global-search').value = ''; activateWorkspaceTab('home'); $('dashboard-heading').focus(); }
+  if (id === 'home') { portfolioFilter=''; detailTab = 'Overview'; filterQuery = ''; $('global-search').value = ''; activateWorkspaceTab('home'); $('dashboard-heading').focus(); }
   if (id === 'workspace') { activateWorkspaceTab(lastWorkTab || 'workspace'); ($('workspace-extra').querySelector('h2') || $('editor-tab-list').querySelector('[role="tab"]'))?.focus(); }
   if (id === 'projects') { workbench.setPanelVisible('explorer', true); syncLayoutControls(); activateWorkspaceTab('home'); explorerUI.activate('projects', true); }
   if (id === 'search') { activateWorkspaceTab('home'); $('global-search').focus(); }
@@ -58,14 +59,20 @@ function syncLayoutControls() {
   $('dock-bottom').setAttribute('aria-pressed', String(workbench.panelVisible('bottom')));
 }
 syncLayoutControls();
-const explorerUI = window.CockpitTabbedExplorerUI({document, root:$('tabbed-explorer'), storage:localStorage, storageKey:'propro-tabbed-explorer-v1', tabs:[
-  {id:'projects',label:'Projects',icon:'▤',provider:{getNodes:() => data.projects.map(project => ({
+function projectTreeNodes() {
+  const nodes = data.projects.map(project => ({
     id:`project:${project.id}`,label:project.name,icon:'▤',kind:'project',projectId:project.id,
     children:['items','resources','evidence','links'].flatMap(kind => project[kind].length ? [{
       id:`group:${project.id}:${kind}`,label:{items:'Tasks',resources:'Resources',evidence:'Evidence',links:'Links'}[kind],icon:'▸',
       children:project[kind].map(entry => ({id:`entry:${project.id}:${kind}:${entry.id}`,label:entry.title,kind:'entry',projectId:project.id,entryKind:kind,entryId:entry.id}))
     }] : [])
-  })),open:node => { if (node.kind === 'project') openProjectTab(node.projectId); if (node.kind === 'entry') openEntryTab(node.projectId,node.entryKind,node.entryId); }}},
+  }));
+  if (!portfolios(data).length) return nodes;
+  return [...portfolios(data).map(p => ({id:'portfolio:'+p.id,label:p.name,kind:'portfolio',portfolioId:p.id,children:nodes.filter(n => data.projects.find(x => x.id === n.projectId)?.portfolioId === p.id)})),{id:'portfolio-unassigned',label:'Unassigned',kind:'portfolio',portfolioId:'__unassigned__',children:nodes.filter(n => !data.projects.find(x => x.id === n.projectId)?.portfolioId)}];
+}
+function showPortfolio(id) {portfolioFilter=id;activateWorkspaceTab('home');render();$('portfolio-filter').focus();}
+const explorerUI = window.CockpitTabbedExplorerUI({document, root:$('tabbed-explorer'), storage:localStorage, storageKey:'propro-tabbed-explorer-v1', tabs:[
+  {id:'projects',label:'Projects',icon:'▤',provider:{getNodes:projectTreeNodes,open:node => {if(node.kind === 'portfolio')showPortfolio(node.portfolioId);if(node.kind === 'project')openProjectTab(node.projectId);if(node.kind === 'entry')openEntryTab(node.projectId,node.entryKind,node.entryId);}}},
   {id:'files',label:'Files',icon:'▣',emptyMessage:'Open a local file in the center workspace to see it here. Only files you choose can be previewed.',provider:{getNodes:() => workspaceTabs.filter(tab => tab.kind === 'file').map(tab => ({id:tab.id,label:tab.title,icon:tab.fileType === 'pdf' ? '▧' : '≡',tabId:tab.id})),open:node => activateWorkspaceTab(node.tabId)}},
   {id:'assets',label:'Assets',icon:'◇',provider:{getNodes:() => ({message:'Local project resource, evidence and link titles; no binary asset library is connected.',nodes:data.projects.flatMap(project => {
     const children = ['resources','evidence','links'].flatMap(kind => project[kind].map(entry => ({id:`asset:${project.id}:${kind}:${entry.id}`,label:entry.title,meta:{resources:'Resource',evidence:'Evidence',links:'Link'}[kind],projectId:project.id,entryKind:kind,entryId:entry.id})));
@@ -373,7 +380,10 @@ function current() { return data.projects.find(p => p.id === selected); }
 function select(id) { detailTab = 'Overview'; openProjectTab(id); $('detail-heading')?.focus(); }
 function render() {
   const p = current();
-  const visibleProjects = filterQuery ? data.projects.filter(x => matchesProject(x, filterQuery)) : data.projects;
+  if(portfolioFilter && portfolioFilter!=='__unassigned__' && !portfolios(data).some(p=>p.id===portfolioFilter))portfolioFilter='';
+  const scopedProjects=data.projects.filter(p => !portfolioFilter || (portfolioFilter==='__unassigned__' ? !p.portfolioId : p.portfolioId===portfolioFilter));
+  const visibleProjects = filterQuery ? scopedProjects.filter(x => matchesProject(x, filterQuery)) : scopedProjects;
+  renderPortfolios();
   const entries = data.projects.reduce((total, x) => total + x.items.length + x.resources.length + x.evidence.length + x.links.length, 0);
   $('project-count').textContent = filterQuery ? `${visibleProjects.length} matching projects` : 'Projects, activity and current work in one place.';
   $('overview-stats').innerHTML = `<div><strong>${data.projects.length}</strong><span>Projects</span></div><div><strong>${data.projects.reduce((n,x)=>n+x.items.length,0)}</strong><span>Tasks</span></div><div><strong>${entries}</strong><span>Total entries</span></div>`;
@@ -384,8 +394,8 @@ function render() {
   $('cards').innerHTML = visibleProjects.map(x => {
     const minimized = prefs.minimized.includes(x.id);
     const count = x.items.length + x.resources.length + x.evidence.length + x.links.length;
-    return `<article class="project-card${minimized ? ' minimized':''}" data-selected="${x.id === selected}"><div class="card-main"><div class="card-copy"><span class="card-kicker">PROJECT</span><h3>${esc(x.name)}</h3><p class="card-summary">${x.capabilities.length ? x.capabilities.map(esc).join(' · ') : 'Any kind of work'} · ${count} ${count === 1 ? 'entry':'entries'}</p></div><div class="card-actions"><button type="button" data-select="${esc(x.id)}" aria-label="Open ${esc(x.name)}">Open</button><button type="button" data-pin-home="project:${esc(x.id)}" aria-label="${homePins.includes(`project:${x.id}`) ? `Pinned ${esc(x.name)}; unpin from Home` : `Pin ${esc(x.name)} to Home`}" aria-pressed="${homePins.includes(`project:${x.id}`)}">${homePins.includes(`project:${x.id}`) ? 'Pinned' : 'Pin'}</button><button type="button" data-minimize="${esc(x.id)}" aria-label="${minimized ? 'Expand':'Minimize'} ${esc(x.name)}" aria-pressed="${minimized}">${minimized ? 'Expand':'Minimize'}</button></div></div>${minimized ? '' : `<div class="card-meta"><span>${x.items.length} tasks</span><span>${x.resources.length} resources</span><span>${x.evidence.length} evidence</span><span>${x.links.length} links</span></div>`}</article>`;
-  }).join('') || `<div class="empty"><h3>${filterQuery ? 'No projects match that search' : 'Make room for your next project'}</h3><p>${filterQuery ? 'Try another term or clear search.' : 'Start with a name. Add capabilities whenever you need them.'}</p>${filterQuery ? '' : `<button class="primary" type="button" data-new ${loadError ? 'disabled':''}>New project</button>`}</div>`;
+    return `<article class="project-card${minimized ? ' minimized':''}" data-selected="${x.id === selected}"><div class="card-main"><div class="card-copy"><span class="card-kicker">${esc(portfolios(data).find(p=>p.id===x.portfolioId)?.name || 'Unassigned project')}</span><h3>${esc(x.name)}</h3><p class="card-summary">${x.capabilities.length ? x.capabilities.map(esc).join(' · ') : 'Any kind of work'} · ${count} ${count === 1 ? 'entry':'entries'}</p></div><div class="card-actions"><button type="button" data-select="${esc(x.id)}" aria-label="Open ${esc(x.name)}">Open</button><button type="button" data-pin-home="project:${esc(x.id)}" aria-label="${homePins.includes(`project:${x.id}`) ? `Pinned ${esc(x.name)}; unpin from Home` : `Pin ${esc(x.name)} to Home`}" aria-pressed="${homePins.includes(`project:${x.id}`)}">${homePins.includes(`project:${x.id}`) ? 'Pinned' : 'Pin'}</button><button type="button" data-minimize="${esc(x.id)}" aria-label="${minimized ? 'Expand':'Minimize'} ${esc(x.name)}" aria-pressed="${minimized}">${minimized ? 'Expand':'Minimize'}</button></div></div>${minimized ? '' : `<div class="card-meta"><span>${x.items.length} tasks</span><span>${x.resources.length} resources</span><span>${x.evidence.length} evidence</span><span>${x.links.length} links</span></div>`}</article>`;
+  }).join('') || `<div class="empty"><h3>${filterQuery ? 'No projects match that search' : portfolioFilter ? 'No projects in this portfolio' : 'Make room for your next project'}</h3><p>${filterQuery ? 'Try another term or clear search.' : 'Start with a name. Add capabilities whenever you need them.'}</p>${filterQuery ? '' : `<button class="primary" type="button" data-new ${loadError ? 'disabled':''}>New project</button>`}</div>`;
   const recent = visibleProjects.flatMap(project => ['items','resources','evidence','links'].flatMap(key => project[key].slice(-2).map(item => ({project, item, type:{items:'Task',resources:'Resource',evidence:'Evidence',links:'Link'}[key]})))).slice(0,4);
   $('recent-work').innerHTML = recent.length ? `<div class="section-head"><h3>Recent work</h3><span>${recent.length} entries</span></div><ul>${recent.map(x => `<li><span class="recent-kind">${x.type}</span><span>${esc(x.item.title)}</span><button type="button" data-select="${esc(x.project.id)}">${esc(x.project.name)}</button></li>`).join('')}</ul>` : '';
   renderHomePins();
@@ -397,7 +407,7 @@ function detailHTML(p) {
   const tabs = ['Overview','Tasks','Resources','Evidence','Links',...p.capabilities];
   if (!tabs.includes(detailTab)) detailTab = 'Overview';
   let body;
-  if (detailTab === 'Overview') body = `<p class="muted">Keep this project flexible. Capabilities help describe the work; shared entries are always available.</p><form id="caps-form"><fieldset><legend>Capabilities</legend><div class="cap-options">${CAPS.map(c => `<label><input type="checkbox" name="cap" value="${c}" ${p.capabilities.includes(c) ? 'checked':''}>${c}</label>`).join('')}</div></fieldset><button class="primary" type="submit">Save capabilities</button></form>`;
+  if (detailTab === 'Overview') body = `<form id="membership-form" class="portfolio-membership"><label>Portfolio<select name="portfolio" aria-label="Portfolio membership"><option value="">Unassigned</option>${portfolios(data).map(portfolio=>`<option value="${esc(portfolio.id)}" ${portfolio.id===p.portfolioId?'selected':''}>${esc(portfolio.name)}</option>`).join('')}</select></label><button type="submit">Save membership</button></form><p class="muted">Keep this project flexible. Capabilities help describe the work; shared entries are always available.</p><form id="caps-form"><fieldset><legend>Capabilities</legend><div class="cap-options">${CAPS.map(c => `<label><input type="checkbox" name="cap" value="${c}" ${p.capabilities.includes(c) ? 'checked':''}>${c}</label>`).join('')}</div></fieldset><button class="primary" type="submit">Save capabilities</button></form>`;
   else if (['Tasks','Resources','Evidence','Links'].includes(detailTab)) {
     const key = {Tasks:'items',Resources:'resources',Evidence:'evidence',Links:'links'}[detailTab];
     body = `<form id="entry-form" class="entry-form"><label>New ${detailTab.toLowerCase()} entry<input name="title" maxlength="1000" required></label><button class="primary" type="submit">Add entry</button></form><ul class="entry-list">${p[key].map(x => { const pinKey = `entry:${p.id}:${key}:${x.id}`; return `<li><span>${esc(x.title)}</span><button type="button" data-pin-home="${esc(pinKey)}" aria-label="${homePins.includes(pinKey) ? `Pinned ${esc(x.title)}; unpin from Home` : `Pin ${esc(x.title)} to Home`}" aria-pressed="${homePins.includes(pinKey)}">${homePins.includes(pinKey) ? 'Pinned' : 'Pin'}</button><button type="button" data-remove="${esc(x.id)}" data-kind="${key}" aria-label="Remove ${esc(x.title)}">Remove</button></li>`; }).join('')}</ul>${p[key].length ? '' : '<p class="muted">No entries yet.</p>'}`;
@@ -470,7 +480,7 @@ document.addEventListener('submit', e => {
   const form = e.target;
   if (!['project-form','rename-form','caps-form','entry-form'].includes(form.id)) return;
   e.preventDefault();
-  if (form.id === 'project-form') { const name = form.elements.name.value.trim(); if (!name) return; const p = newProject(uid(), name.slice(0,200), [...form.querySelectorAll('input[name="cap"]:checked')].map(x => x.value)); data.projects.push(p); detailTab = 'Overview'; openProjectTab(p.id); saveData(); form.reset(); $('project-dialog').close(); notice('Project created and saved locally.'); $('detail-heading')?.focus(); }
+  if (form.id === 'project-form') { const name = form.elements.name.value.trim(); if (!name) return; const p = newProject(uid(), name.slice(0,200), [...form.querySelectorAll('input[name="cap"]:checked')].map(x => x.value)); if(portfolioFilter && portfolioFilter!=='__unassigned__')p.portfolioId=portfolioFilter; data.projects.push(p); detailTab = 'Overview'; openProjectTab(p.id); saveData(); form.reset(); $('project-dialog').close(); notice('Project created and saved locally.'); $('detail-heading')?.focus(); }
   if (form.id === 'rename-form') { const name = form.elements.name.value.trim(); if (name && current()) { current().name = name.slice(0,200); saveData(); notice('Project renamed.'); } }
   if (form.id === 'caps-form' && current()) { current().capabilities = [...form.querySelectorAll('input:checked')].map(x => x.value); saveData(); }
   if (form.id === 'entry-form' && current()) { const key = {Tasks:'items',Resources:'resources',Evidence:'evidence',Links:'links'}[detailTab], title = form.elements.title.value.trim(); if (key && title) { current()[key].push({id:uid(),title}); saveData(); } }
@@ -480,6 +490,18 @@ $('export').onclick = () => { const blob = new Blob([JSON.stringify(data,null,2)
 $('import').onchange = async e => { const file = e.target.files[0]; e.target.value = ''; if (!file) return; try { if (file.size > 5_000_000) throw Error('File too large'); pendingImport = validateData(JSON.parse(await file.text())); $('import-dialog').showModal(); } catch (error) { pendingImport = null; notice('Import failed: ' + error.message); } };
 $('cancel-import').onclick = () => { pendingImport = null; $('import-dialog').close(); };
 $('import-dialog').addEventListener('close', () => { if (!$('import-dialog').open) pendingImport = null; });
-$('confirm-import').onclick = () => { if (!pendingImport) return; data = pendingImport; pendingImport = null; loadError = false; $('new-project').disabled = false; for (const tab of workspaceTabs) if (tab.url) URL.revokeObjectURL(tab.url); workspaceTabs = []; activeWorkspaceTab = 'home'; lastWorkTab = null; selected = null; detailTab = 'Overview'; homePins = homePins.filter(item => resolveHomePin(item)); try { localStorage.setItem(HOME_PINS_KEY,JSON.stringify(homePins)); } catch {} prefs = readPrefs(JSON.stringify(prefs), data.projects.map(p => p.id)); saveData(); savePrefs(); $('import-dialog').close(); notice('Imported project backup.'); };
+$('confirm-import').onclick = () => { if (!pendingImport) return; data = pendingImport; pendingImport = null; loadError = false; $('new-project').disabled = false; for (const tab of workspaceTabs) if (tab.url) URL.revokeObjectURL(tab.url); workspaceTabs = []; activeWorkspaceTab = 'home'; lastWorkTab = null; selected = null; detailTab = 'Overview'; portfolioFilter=''; homePins = homePins.filter(item => resolveHomePin(item)); try { localStorage.setItem(HOME_PINS_KEY,JSON.stringify(homePins)); } catch {} prefs = readPrefs(JSON.stringify(prefs), data.projects.map(p => p.id)); saveData(); savePrefs(); $('import-dialog').close(); notice('Imported project backup.'); };
+function renderPortfolios() {
+  $('portfolios-home').innerHTML=`<div class="section-head"><h3>Portfolios</h3><button type="button" id="new-portfolio" ${loadError?'disabled':''}>New portfolio</button></div><label class="portfolio-filter-label">Show projects<select id="portfolio-filter" aria-label="Show projects"><option value="">All projects</option><option value="__unassigned__" ${portfolioFilter==='__unassigned__'?'selected':''}>Unassigned</option>${portfolios(data).map(p=>`<option value="${esc(p.id)}" ${portfolioFilter===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label><div class="portfolio-list">${portfolios(data).map(p=>`<div class="portfolio-card"><button type="button" data-portfolio="${esc(p.id)}" aria-pressed="${portfolioFilter===p.id}">${esc(p.name)} <span>${data.projects.filter(x=>x.portfolioId===p.id).length} project${data.projects.filter(x=>x.portfolioId===p.id).length===1?'':'s'}</span></button><button type="button" data-rename-portfolio="${esc(p.id)}" aria-label="Rename portfolio ${esc(p.name)}">Rename</button></div>`).join('')}</div>`;
+  $('portfolio-filter').onchange=event=>{portfolioFilter=event.target.value;render();$('portfolio-filter').focus()};
+}
+document.addEventListener('click',event=>{
+ const b=event.target.closest('button');if(!b)return;
+ if(b.id==='new-portfolio'||b.dataset.renamePortfolio){if(loadError)return;editingPortfolio=b.dataset.renamePortfolio||null;$('portfolio-heading').textContent=editingPortfolio?'Rename portfolio':'Create portfolio';$('portfolio-form').elements.name.value=portfolios(data).find(p=>p.id===editingPortfolio)?.name||'';$('portfolio-dialog').showModal();$('portfolio-form').elements.name.focus()}
+ if(b.dataset.portfolio)showPortfolio(b.dataset.portfolio);
+});
+$('cancel-portfolio').onclick=()=>$('portfolio-dialog').close();
+$('portfolio-form').onsubmit=event=>{event.preventDefault();if(loadError)return;const name=event.target.elements.name.value.trim();if(!name)return;if(editingPortfolio){const p=portfolios(data).find(p=>p.id===editingPortfolio);if(!p)return;p.name=name}else{const p=newPortfolio(uid(),name);data.portfolios=[...portfolios(data),p];portfolioFilter=p.id}saveData();$('portfolio-dialog').close();$('portfolio-filter').focus();notice('Portfolio saved locally.')};
+document.addEventListener('submit',event=>{if(event.target.id!=='membership-form')return;event.preventDefault();if(loadError||!current())return;assignPortfolio(data,current().id,event.target.elements.portfolio.value||null);saveData();$('membership-form')?.querySelector('select')?.focus();notice('Portfolio membership saved.')});
 render();
 if (loadError) { $('new-project').disabled = true; notice('Saved data could not be read. Import a valid backup; existing browser data was left untouched.'); }

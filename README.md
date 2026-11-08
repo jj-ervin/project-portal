@@ -8,6 +8,8 @@ ProPro is an adaptable project portal for construction, research, freelance, cre
 
 **Current stage:** runnable local dashboard candidate on `feature/propro-002-first-workspace`; review and human visual acceptance remain open.
 
+Current portfolio follow-up (November 7, 2026): the active checkout adds a browser-local portfolio creation, rename, membership, Home filtering, and Explorer grouping candidate. Existing version 1 project records remain compatible. See [portfolio scope and data contract](docs/PORTFOLIO-SLICE.md). Owner acceptance is still open; this note supersedes the feature-branch wording above for the current checkout and does not declare a release.
+
 - [Product charter](docs/PRODUCT-CHARTER.md)
 - [ProPro-001 scope and exit criteria](docs/PROPRO-001.md)
 
