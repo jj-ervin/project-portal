@@ -11,6 +11,8 @@ test('tasks can be associated, edited, completed, reopened, exported and importe
   await page.getByRole('button',{name:'Add milestone'}).click();
   await page.getByLabel('New deliverable').fill('Report');
   await page.getByRole('button',{name:'Add deliverable'}).click();
+  await expect(page.locator('#entry-form .task-options')).not.toHaveAttribute('open');
+  await page.locator('#entry-form .task-options summary').click();
   await page.locator('#entry-form').getByLabel('Task title').fill('Write draft');
   await page.locator('#entry-form').getByLabel('Milestone').selectOption({label:'Review'});
   await page.locator('#entry-form').getByLabel('Deliverable').selectOption({label:'Report'});

@@ -13,3 +13,7 @@ The slice does not implement milestone or deliverable editing, deadlines, depend
 Tasks may now hold the same optional `{kind,locator}` connection as project Resources. The Tasks form accepts a URL, local file, folder, or Windows application, and the first open task with a connection exposes an **Open next action** button. Each connected task also has an **Open work** button. These actions only open the referenced destination; completing a task remains a separate explicit action. Existing version 1 records and exports remain valid, while imports reject invalid connections before replacing saved data. This is a general ProPro handoff to the app that owns the work, not a second article store or approval system.
 
 For Governance Commons, the local editorial Portal is currently at `http://127.0.0.1:4177/` when separately started and configured. It can create a candidate-backed draft and submit that revision for review. The local pilot does not yet provide end-to-end article editing, independent approval, or public website publishing from its UI. Linking a ProPro task to the Portal does not grant publication authority or prove that an article is live.
+
+## Compact task capture (2026-11-08)
+
+The task title and Add button now share one row. Milestone, deliverable, and work destination fields remain available behind an optional disclosure, which opens automatically when editing a task that already uses them. The task list begins higher in the project view; the underlying task records and version 1 export format are unchanged.
