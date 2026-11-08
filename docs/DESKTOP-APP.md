@@ -8,4 +8,6 @@ The app starts its own loopback server on `127.0.0.1:8765` and keeps that port f
 
 The app allows external HTTP(S) links to open through the operating system. Node integration and renderer process access to local files are disabled. Local file, folder and application resources still use the existing explicit Open action and Windows loopback route. Port 8765 must be free; the app stops with an error if it is occupied. One desktop instance is allowed at a time.
 
+Tasks can also hold an explicit work destination and expose **Open next action** or **Open work**. A Governance Commons task may point to the separately running local Portal at `http://127.0.0.1:4177/`; this is a navigation link, not an editorial integration or publication permission.
+
 This is a local application shell around existing functionality, not proof of production security, an installer, cloud sync, accounts, website publication or GC News workflow integration. Human first-run usability, installer/signing, data recovery, and web-host design remain open.

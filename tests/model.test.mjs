@@ -54,3 +54,10 @@ test('task associations and completion round-trip without changing legacy record
    const bad=structuredClone(data);change(bad.projects[1].items[0]);assert.throws(()=>validateData(bad),/Invalid task/);
  }
 });
+test('task work destinations use the existing connection contract in version 1',()=>{
+ const data=emptyData(), project=newProject('p','Research');data.projects.push(project);
+ project.items.push({id:'t',title:'Draft',connection:validateConnection({kind:'url',locator:'http://127.0.0.1:4177/'})});
+ assert.equal(validateData(JSON.parse(JSON.stringify(data))).projects[0].items[0].connection.locator,'http://127.0.0.1:4177/');
+ project.items[0].connection={kind:'url',locator:'javascript:alert(1)'};
+ assert.throws(()=>validateData(data),/Invalid resource URL/);
+});

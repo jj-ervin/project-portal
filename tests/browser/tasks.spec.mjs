@@ -14,10 +14,16 @@ test('tasks can be associated, edited, completed, reopened, exported and importe
   await page.locator('#entry-form').getByLabel('Task title').fill('Write draft');
   await page.locator('#entry-form').getByLabel('Milestone').selectOption({label:'Review'});
   await page.locator('#entry-form').getByLabel('Deliverable').selectOption({label:'Report'});
+  await page.locator('#entry-form').getByLabel('Open work in').selectOption('url');
+  await page.locator('#entry-form').getByLabel('URL or absolute Windows path').fill('https://example.com/draft');
   await page.getByRole('button',{name:'Add task'}).click();
   await expect(page.locator('.task-summary')).toContainText('0/1 tasks complete');
   await expect(page.locator('.task-summary')).toContainText('Next action: Write draft');
   await expect(page.locator('.task-row')).toContainText('Milestone: Review');
+  await expect(page.getByRole('button',{name:'Open next action'})).toBeVisible();
+  const popup=page.waitForEvent('popup');
+  await page.getByRole('button',{name:'Open next action'}).click();
+  await expect(await popup).toHaveURL('https://example.com/draft');
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.locator('#task-edit-form').getByLabel('Task title').fill('Write first draft');
   await page.getByRole('button',{name:'Save task'}).click();
@@ -38,7 +44,7 @@ test('tasks can be associated, edited, completed, reopened, exported and importe
   await page.getByRole('button',{name:'Reopen'}).click();
   await expect(page.locator('.task-summary')).toContainText('Next action: Write first draft');
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('propro-project-portal-v1')));
-  expect(saved.projects[0].items[0]).toMatchObject({title:'Write first draft',completed:false,milestoneId:saved.projects[0].milestones[0].id,deliverableId:saved.projects[0].deliverables[0].id});
+  expect(saved.projects[0].items[0]).toMatchObject({title:'Write first draft',completed:false,milestoneId:saved.projects[0].milestones[0].id,deliverableId:saved.projects[0].deliverables[0].id,connection:{kind:'url',locator:'https://example.com/draft'}});
 });
 
 test('legacy tasks remain editable with keyboard and fit narrow screens', async ({page}) => {

@@ -53,6 +53,7 @@ function validateData(value) {
         if (task.completed !== undefined && typeof task.completed !== 'boolean') throw Error('Invalid task completion');
         if (task.milestoneId !== undefined && task.milestoneId !== null && !milestoneIds.has(task.milestoneId)) throw Error('Invalid task milestone');
         if (task.deliverableId !== undefined && task.deliverableId !== null && !deliverableIds.has(task.deliverableId)) throw Error('Invalid task deliverable');
+        if (task.connection !== undefined) validateConnection(task.connection);
       }
     }
   }
