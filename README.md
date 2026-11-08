@@ -24,4 +24,6 @@ Ollama follow-up (November 8, 2026): the right pane now connects to installed lo
 
 Use Node 22 or newer and run `npm ci` once to install the pinned local Cockpit GUI package. Then either open `index.html` directly or run `npm start` and visit http://localhost:8000. The app works offline after installation. Project data stays in the browser under the original `propro-project-portal-v1` key. A `file://` page and `http://localhost:8000` have separate browser storage; use Export JSON and Import JSON to move projects between them.
 
+For a local Windows app window, run `npm run desktop`. A portable x64 build can be created with `npm run desktop:package`; see [desktop app status and data behavior](docs/DESKTOP-APP.md). Desktop project data has its own profile, so transfer existing browser projects with Export JSON and Import JSON.
+
 Run `npm test` and `npm run test:browser` for model, browser, accessibility and viewport checks. See [PROP-CKP-001B implementation record](docs/PROP-CKP-001B-IMPLEMENTATION.md) for ownership, provenance and open acceptance gates.

@@ -2,8 +2,11 @@
   "name": "propro-dashboard",
   "version": "0.1.0",
   "private": true,
+  "main": "desktop/main.cjs",
   "scripts": {
     "start": "node server.mjs",
+    "desktop": "electron .",
+    "desktop:package": "electron-builder --win portable --x64",
     "test": "node --test tests/*.test.mjs",
     "test:browser": "playwright test"
   },
@@ -13,8 +16,22 @@
   "dependencies": {
     "@cockpit/gui": "file:vendor/cockpit-gui-0.1.4.tgz"
   },
+  "build": {
+    "appId": "org.propro.desktop",
+    "productName": "ProPro",
+    "asar": false,
+    "directories": {"output": "release"},
+    "files": [
+      "desktop/**", "app.mjs", "chat-client.mjs", "chat-service.mjs",
+      "index.html", "model.mjs", "ollama.mjs", "open-resource.ps1",
+      "server.mjs", "styles.css", "node_modules/@cockpit/gui/**"
+    ],
+    "win": {"target": [{"target": "portable", "arch": ["x64"]}]}
+  },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "axe-core": "^4.14.0"
+    "axe-core": "^4.14.0",
+    "electron": "43.2.0",
+    "electron-builder": "26.15.3"
   }
 }
