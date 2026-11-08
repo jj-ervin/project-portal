@@ -2,7 +2,4 @@ node_modules/
 test-results/
 playwright-report/
 
-# Local research copies may have separate distribution rights.
-docs/research/*.pdf
-
 .propro/
