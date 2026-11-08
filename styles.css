@@ -233,8 +233,34 @@ body { background:#f5f6fa; }
 @media(min-width:1051px) {
   /* Keep a usable conversation row when the bottom panel is maximized.
      Short windows may scroll the page instead of overlapping the two panes. */
-  #workbench.has-bottom { min-height:max(540px,calc(var(--cockpit-bottom-height,240px) + 366px)); }
+  #workbench.has-bottom { min-height:0; }
 }
 @media(max-width:1050px) { #context.cockpit-workbench__context { min-height:330px; } }
 #context .composer-suggestions { overflow-y:auto; overscroll-behavior:contain; }
 #context .context-content:focus-visible { outline:2px solid var(--blue); outline-offset:-2px; }
+
+/* Desktop panes consume a fixed window budget; growing one shrinks the other. */
+@media(min-width:1051px){
+ html,body{height:100%;overflow:hidden}
+ body{display:flex;flex-direction:column;height:100dvh}
+ .site-header,.status{flex:none}
+ #workbench,#workbench.has-bottom{flex:1 1 0;height:auto;min-height:0;overflow:hidden}
+ #workbench.has-bottom{grid-template-rows:minmax(0,1fr) 6px min(var(--cockpit-bottom-height,240px),max(160px,calc(100% - 286px)))}
+ #content.cockpit-workbench__content{min-height:0;overflow:auto}
+ #workbench.has-bottom>#bottom-panel{overflow:hidden}
+}
+#context .composer{margin:7px 10px;padding:5px;border-radius:8px}
+#context .composer textarea{min-height:30px;height:30px;max-height:90px;padding:4px 5px;resize:vertical}
+#context .composer-note{margin:3px 2px 0;font-size:9px;line-height:1.3}
+.agent-environments{display:flex;flex:none;gap:3px;border-bottom:1px solid var(--border);padding:0 10px}
+.agent-environments button{border:0;border-radius:0;background:transparent;min-height:30px;padding:4px 7px;font-size:11px;color:#626d80}
+.agent-environments button[aria-selected=true]{border-bottom:2px solid #4359a9;color:#354c9a;font-weight:650}
+.agent-session-tools{display:flex;flex:none;gap:5px;padding:6px 10px;border-bottom:1px solid var(--border)}
+.agent-session-tools select{flex:1;min-width:0;max-width:100%;font-size:11px;border:1px solid #d5dce8;border-radius:5px;padding:4px}
+.agent-session-tools button{padding:4px 7px;font-size:11px;white-space:nowrap}
+.agent-session-tools[hidden],#agent-transcript[hidden],#agent-status[hidden]{display:none}
+.agent-message{font-size:12px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px 0;border-bottom:1px solid #e0e5ee}
+.agent-message strong{display:block;font-size:10px;color:#52658b;margin-bottom:5px}
+.agent-message.user{background:#f5f7fc;padding:9px;border-radius:7px;margin-top:10px}
+#agent-status{font-size:10px;color:#65728a;padding:5px 0}
+#context.agent-connected .context-welcome,#context.agent-connected #composer-results,#context.agent-connected .context-eyebrow,#context.agent-connected .composer-tools .attach-button,#context.agent-connected #composer-scope,#context.agent-connected #composer-suggestions{display:none}

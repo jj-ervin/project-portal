@@ -5,6 +5,8 @@ test('conversation composer stays contained above bottom tools while its content
  const grip=page.getByRole('separator',{name:'Resize bottom panel'});
  for(const {width,height,max} of [{width:1440,height:900,max:false},{width:1280,height:800,max:false},{width:1280,height:720,max:true}]){
   await page.setViewportSize({width,height});await grip.focus();await grip.press(max?'End':'Home');
+  expect(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1)).toBeTruthy();
+  expect((await page.locator('#composer').boundingBox()).height).toBeLessThan(115);
   const pane=await page.locator('#context').boundingBox(),composer=await page.locator('#composer').boundingBox(),bottom=await page.locator('#bottom-panel').boundingBox();
   expect(composer.y).toBeGreaterThanOrEqual(pane.y);expect(composer.y+composer.height).toBeLessThanOrEqual(pane.y+pane.height+1);expect(composer.y+composer.height).toBeLessThanOrEqual(bottom.y+1);
   const before=composer.y;const scroll=await page.locator('.context-content').evaluate(el=>{el.scrollTop=el.scrollHeight;return {top:el.scrollTop,scrollHeight:el.scrollHeight,height:el.clientHeight}});expect(scroll.top).toBeGreaterThan(0);expect(scroll.scrollHeight).toBeGreaterThan(scroll.height);expect((await page.locator('#composer').boundingBox()).y).toBeCloseTo(before,0);

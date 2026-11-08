@@ -10,7 +10,7 @@ ProPro is an adaptable project portal for construction, research, freelance, cre
 
 Current portfolio follow-up (November 7, 2026): the active checkout adds a browser-local portfolio creation, rename, membership, Home filtering, and Explorer grouping candidate. Existing version 1 project records remain compatible. See [portfolio scope and data contract](docs/PORTFOLIO-SLICE.md). Owner acceptance is still open; this note supersedes the feature-branch wording above for the current checkout and does not declare a release.
 
-Pane follow-up (November 7, 2026): the conversation composer is contained above the bottom panel while context content scrolls independently. [Pane workflow proposals](docs/PANE-WORKFLOWS.md) preserve the suggested agent tabs, internal-assistant role, Lasso workspace, real terminal, and optional media utilities. These integrations are proposals; the current right pane remains local search and the CLI scratchpad remains command preview.
+Pane follow-up (November 7, 2026): desktop pane resizing now redistributes a fixed window height and the input starts compact. The right pane connects to real, read-only Codex conversations with saved native session history, independent drafts and Local Search switching. See [agent conversations](docs/AGENT-CONVERSATIONS.md). [Pane workflow proposals](docs/PANE-WORKFLOWS.md) retain the future Lasso workspace, real terminal, and optional media ideas; the bottom CLI scratchpad remains command preview.
 
 - [Product charter](docs/PRODUCT-CHARTER.md)
 - [ProPro-001 scope and exit criteria](docs/PROPRO-001.md)

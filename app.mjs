@@ -351,6 +351,7 @@ function renderAttachments() {
   $('composer-attachments').innerHTML = attachments.map((file, index) => `<span class="attachment-chip">${esc(file.name)} <button type="button" data-attachment="${index}" aria-label="Remove ${esc(file.name)}">×</button></span>`).join('');
 }
 function renderComposerSuggestions() {
+  if(window.ProProAgentChat?.active())return;
   const match = $('composer-input').value.match(/(?:^|\s)([#@/])([^\s]*)$/);
   composerSuggestions = [];
   if (match) {
@@ -389,6 +390,7 @@ function render() {
   $('overview-stats').innerHTML = `<div><strong>${data.projects.length}</strong><span>Projects</span></div><div><strong>${data.projects.reduce((n,x)=>n+x.items.length,0)}</strong><span>Tasks</span></div><div><strong>${entries}</strong><span>Total entries</span></div>`;
   $('section-count').textContent = `${visibleProjects.length} shown`;
   $('context-project').textContent = p ? p.name : 'All projects';
+  window.ProProAgentChat?.contextChanged?.();
   document.querySelectorAll('button[data-mode]').forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.mode === prefs.mode)); });
   $('cards').dataset.mode = prefs.mode;
   $('cards').innerHTML = visibleProjects.map(x => {
@@ -433,6 +435,7 @@ $('reset-layout').addEventListener('click', () => { workbench.resetLayout(); syn
 $('composer-files').addEventListener('change', e => { attachments.push(...e.target.files); e.target.value = ''; renderAttachments(); showComposerResult(`${attachments.length} attachment${attachments.length === 1 ? '' : 's'} selected locally. No files have been uploaded.`); });
 $('composer-input').addEventListener('input', renderComposerSuggestions);
 $('composer-input').addEventListener('keydown', e => {
+  if(window.ProProAgentChat?.active()){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('composer').requestSubmit()}return;}
   if (e.key === 'ArrowDown' && composerSuggestions.length) { e.preventDefault(); $('composer-suggestions').querySelector('button')?.focus(); }
   if (e.key === 'Escape') { composerSuggestions = []; $('composer-suggestions').innerHTML = ''; }
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); }
@@ -447,6 +450,7 @@ $('composer-suggestions').addEventListener('keydown', e => {
 $('composer-suggestions').addEventListener('click', e => { const button = e.target.closest('button[data-suggestion]'); if (button) chooseComposerSuggestion(Number(button.dataset.suggestion)); });
 $('composer').addEventListener('submit', e => {
   e.preventDefault();
+  if(window.ProProAgentChat?.active())return;
   composerSuggestions = []; $('composer-suggestions').innerHTML = '';
   const query = $('composer-input').value.trim();
   if (!query) { showComposerResult('Enter a project, entry, #tag, @project or /help.'); return; }
@@ -515,3 +519,9 @@ if (typeof ResizeObserver === 'function') {
   composerBounds.observe($('context'));
   composerBounds.observe($('composer'));
 }
+
+window.ProProProjectContext = () => {const p=current();return p?{id:p.id,name:p.name,capabilities:[...p.capabilities],tasks:p.items.slice(0,20).map(i=>i.title.slice(0,500))}:null};
+// Clamp the shared component through its public API rather than growing the page.
+function fitBottomToWindow(){if(innerWidth<=1050)return;const max=Math.min(480,Math.max(160,$('workbench').clientHeight-286));const grip=$('workbench').querySelector('[aria-label="Resize bottom panel"]');grip?.setAttribute('aria-valuemax',String(Math.round(max)));if(workbench.bottomHeight()>max)workbench.setBottomHeight(max)}
+new ResizeObserver(fitBottomToWindow).observe($('workbench'));
+new MutationObserver(fitBottomToWindow).observe($('workbench'),{attributes:true,attributeFilter:['style','class']});
