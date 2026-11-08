@@ -16,4 +16,4 @@ For Governance Commons, the local editorial Portal is currently at `http://127.0
 
 ## Compact task capture (2026-11-08)
 
-The task title and Add button now share one row. Milestone, deliverable, and work destination fields remain available behind an optional disclosure, which opens automatically when editing a task that already uses them. The task list begins higher in the project view; the underlying task records and version 1 export format are unchanged.
+The task title and Add button now share one row. Milestone, deliverable, and work destination fields remain available behind an optional disclosure, which opens automatically when editing a task that already uses them. Project renaming stays on Overview, leaving the Tasks view focused on current work. The task list begins higher in the project view; the underlying task records and version 1 export format are unchanged.

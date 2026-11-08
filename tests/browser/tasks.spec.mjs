@@ -7,6 +7,7 @@ test('tasks can be associated, edited, completed, reopened, exported and importe
   await page.getByRole('dialog',{name:'Create project'}).getByLabel('Project name').fill('Research');
   await page.getByRole('button',{name:'Create project',exact:true}).click();
   await page.getByRole('group',{name:'Project sections'}).getByRole('button',{name:'Tasks'}).click();
+  await expect(page.locator('#rename-form')).toHaveCount(0);
   await page.getByLabel('New milestone').fill('Review');
   await page.getByRole('button',{name:'Add milestone'}).click();
   await page.getByLabel('New deliverable').fill('Report');
