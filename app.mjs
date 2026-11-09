@@ -81,8 +81,8 @@ const explorerUI = window.CockpitTabbedExplorerUI({document, root:$('tabbed-expl
   {id:'git',label:'Git',icon:'⑂',unavailableMessage:'Git is not connected to this browser workspace. No repositories or changes are being read.'},
   {id:'conversations',label:'Conversations',icon:'✦',unavailableMessage:'Conversation history is not connected. This pane cannot read your chats.'}
 ]});
-const utilityTabs = ['terminal', 'problems', 'notes'];
-const utilityLabels = {terminal:'CLI scratchpad', problems:'Problems', notes:'Notes'};
+const utilityTabs = ['terminal', 'problems', 'notes', 'corral'];
+const utilityLabels = {terminal:'CLI scratchpad', problems:'Problems', notes:'Notes', corral:'Corral'};
 const tabStrip = document.createElement('div');
 tabStrip.className = 'utility-tabs';
 tabStrip.setAttribute('role', 'tablist');
@@ -98,9 +98,10 @@ bottomPanel.append(tabStrip);
 const extraViews = {
   terminal: '<p class="context-eyebrow">LOCAL COMMAND PREVIEW</p><h3>CLI scratchpad</h3><p>Try /help or /status. Nothing runs on your computer.</p><form id="scratch-form"><label for="scratch-input">Command</label><div class="scratch-row"><input id="scratch-input" autocomplete="off" placeholder="/help"><button type="submit">Preview</button></div></form><output id="scratch-output" role="status" aria-live="polite"></output>',
   problems: '<p class="context-eyebrow">WORKSPACE STATUS</p><h3>Problems</h3><p id="problem-summary"></p>',
+  corral: '<div id="corral-root"></div>',
   notes: '<p class="context-eyebrow">LOCAL SCRATCH NOTES</p><h3>Notes</h3><label for="panel-notes">Saved in this browser</label><textarea id="panel-notes" rows="8" placeholder="Keep a quick note here…"></textarea>'
 };
-for (const id of ['terminal', 'problems', 'notes']) {
+for (const id of ['terminal', 'problems', 'notes', 'corral']) {
   const panel = document.createElement('section');
   panel.id = `utility-${id}`; panel.className = 'utility-view utility-extra';
   panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', `utility-tab-${id}`);
