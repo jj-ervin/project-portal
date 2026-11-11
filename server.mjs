@@ -18,6 +18,8 @@ const chat = await createChatService({file:process.env.PROPRO_CHAT_STORE||join(r
 const runs = await createAgentRuns({file:process.env.PROPRO_RUN_STORE||join(root,'.propro','runs.json')});
 const newsroom = await NewsroomDiscovery.open(process.env.PROPRO_NEWSROOM_STORE||join(root,'.propro','newsroom.json'));
 if (!newsroom.providers().find(p=>p.id==='rss')?.status.lastSuccess) void newsroom.collect('rss').catch(error=>console.error('Newsroom first collection:',error.message));
+const rssPoll=setInterval(()=>{if(newsroom.providers().find(p=>p.id==='rss')?.enabled)void newsroom.collect('rss').catch(error=>console.error('Newsroom RSS poll:',error.message));},30*60*1000);
+rssPoll.unref();
 const workflow = createWorkflow({root,...(process.env.PROPRO_BOOTDOG_STORE?{stateFile:process.env.PROPRO_BOOTDOG_STORE}:{})});
 const workflowFiles=new Map([['README.md','README.md'],['Product charter','docs/PRODUCT-CHARTER.md'],['Implementation record','docs/PROP-CKP-001B-IMPLEMENTATION.md'],['Workspace plan','docs/PROPRO-002.md']]);
 const reportsDir=join(root,'bootdog','work','sitreps');

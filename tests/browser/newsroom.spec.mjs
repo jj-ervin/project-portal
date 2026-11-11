@@ -4,7 +4,7 @@ test('real RSS discovery reaches Newsroom and triage survives reload',async({pag
   await page.goto('/');
   await page.getByRole('navigation',{name:'Workspace activities'}).getByRole('button',{name:'Newsroom'}).click();
   await expect(page.getByRole('heading',{name:'Newsroom'})).toBeVisible();
-  const card=page.locator('.newsroom-card').first();
+  const card=page.locator('.newsroom-card').filter({has:page.locator('.newsroom-meta').filter({hasText:'rss'})}).first();
   await expect(card.getByRole('link')).toBeVisible({timeout:30000});
   await expect(card.locator('.newsroom-meta')).toContainText('rss');
   const url=await card.getByRole('link').getAttribute('href');
