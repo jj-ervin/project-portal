@@ -28,6 +28,12 @@ For a local Windows app window, run `npm run desktop`. A portable x64 build can 
 
 Run `npm test` and `npm run test:browser` for model, browser, accessibility and viewport checks. See [PROP-CKP-001B implementation record](docs/PROP-CKP-001B-IMPLEMENTATION.md) for ownership, provenance and open acceptance gates.
 
+## Theme Manager
+
+Open **Settings → Appearance → Themes** from the activity rail. Choosing a theme previews it throughout the workspace; **Apply theme** stores the preference on this device. Leaving Settings or choosing **Cancel preview** restores the saved theme. The preference uses `propro-theme-preference-v1` and does not alter project data or exports.
+
+The version 1 registry in `theme-registry.js` contains Refined Balanced and Neon Current. A new theme can be registered with `ProProThemes.registerTheme({id, name, description, tokens})` before opening Settings; every semantic token listed by `ProProThemes.tokenNames` is required. `themes.css` applies those tokens to ProPro and the existing Cockpit workbench. Browser screenshots and tests live under `.scratch` and `tests/browser/themes.spec.mjs`.
+
 ## Governance Commons Newsroom intake candidate
 
 The Newsroom activity opens an editorial desk with Inbox, Review, Pull Manager, Drafts, Published and Sources & Discovery views. Inbox groups first discoveries into today and the previous five days, with older discoveries still accessible. Each day shows its review count and up to three headlines; Basic, Summary and Detailed change the article density. RSS/Atom discovery starts with the NIST news feed on first local server launch, then polls enabled RSS feeds every 30 minutes while the server is open. Pull Manager saves named topic, research, or client pulls backed by RSS/Atom feeds, an OpenAlex query, or Brave search queries; users can edit and run each pull. Articles, provider history, saved pulls and triage are stored in `.propro/newsroom.json` for `npm start`, or in Electron's user data directory for the Windows app. Source links open the original article. Sources & Discovery controls the initial providers and their status. Brave requires `BRAVE_SEARCH_API_KEY`; GC Daily AI News requires a structured manual JSON import. Draft and publication actions remain for GC-NEWS-001B. The implementation contract lives in [ObCore](https://github.com/jj-ervin/observatory-core); this app pins a local package archive so desktop builds do not depend on a sibling checkout.

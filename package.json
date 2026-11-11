@@ -23,7 +23,7 @@
     "asar": false,
     "directories": {"output": "release"},
     "files": [
-      "desktop/**", "app.mjs", "agent-manager-model.js", "agent-manager-ui.js", "chat-client.mjs", "chat-service.mjs", "newsroom-ui.js",
+      "desktop/**", "app.mjs", "agent-manager-model.js", "agent-manager-ui.js", "chat-client.mjs", "chat-service.mjs", "newsroom-ui.js", "theme-registry.js", "themes.css",
       "index.html", "model.mjs", "ollama.mjs", "open-resource.ps1", "agent-runs.mjs", "agent-runs-ui.js",
       "server.mjs", "git-status.mjs", "ide-launch.mjs", "bootdog-workflow.mjs", "workflow-ui/**",
       "styles.css", "node_modules/@cockpit/gui/**", "node_modules/@governancecommons/observatory-core/**"

@@ -5,6 +5,10 @@ const {DATA_KEY, PREF_KEY, CAPS, MODES, RESOURCE_KINDS, emptyData, newProject, n
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => crypto.randomUUID();
+const themeManager = window.ProProThemes;
+let selectedTheme = themeManager.DEFAULT_ID;
+try { selectedTheme = themeManager.readPreference(localStorage.getItem(themeManager.STORAGE_KEY)); } catch {}
+themeManager.applyTheme(document, selectedTheme);
 let data = emptyData(), selected = null, detailTab = 'Overview', pendingImport = null, editingTaskId = null;
 let loadError = false;
 try { const raw = localStorage.getItem(DATA_KEY); if (raw) data = validateData(JSON.parse(raw)); }
@@ -32,7 +36,7 @@ try {
 const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), bottom: bottomPanel, storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [
   {id:'home',label:'Home',glyph:'⌂'}, {id:'workspace',label:'Workspace',glyph:'▣'}, {id:'projects',label:'Projects',glyph:'▤'}, {id:'newsroom',label:'Newsroom',glyph:'▥'},
   {id:'search',label:'Search',glyph:'⌕'}, {id:'conversation',label:'Conversation',glyph:'✦'},
-  {id:'agents',label:'Agent Manager',glyph:'◈'}
+  {id:'agents',label:'Agent Manager',glyph:'◈'}, {id:'settings',label:'Settings',glyph:'⚙'}
 ], initialActivity:'home', onActivity: id => {
   workbench.activate(id);
   if (id === 'home') { portfolioFilter=''; detailTab = 'Overview'; filterQuery = ''; $('global-search').value = ''; activateWorkspaceTab('home'); $('dashboard-heading').focus(); }
@@ -42,6 +46,7 @@ const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), e
   if (id === 'conversation') { workbench.setPanelVisible('context', true); syncLayoutControls(); $('composer-input').focus(); }
   if (id === 'agents') { openAgentManagerTab(); $('agent-manager-heading')?.focus(); }
   if (id === 'newsroom') { openNewsroomTab(); $('workspace-extra').querySelector('h2')?.focus(); }
+  if (id === 'settings') { openSettingsTab(); $('settings-heading')?.focus(); }
 }});
 if (!sharedBottomSaved && previousBottomState && typeof previousBottomState === 'object') {
   if (Number.isFinite(previousBottomState.height)) workbench.setBottomHeight(previousBottomState.height);
@@ -210,7 +215,28 @@ function openNewsroomTab() {
   if (!workspaceTab('newsroom')) workspaceTabs.push({id:'newsroom',kind:'newsroom',title:'Newsroom'});
   activateWorkspaceTab('newsroom');
 }
+function openSettingsTab() {
+  if (!workspaceTab('settings')) workspaceTabs.push({id:'settings',kind:'settings',title:'Settings'});
+  activateWorkspaceTab('settings');
+}
+function renderThemeSettings() {
+  const container = workspaceExtra;
+  container.innerHTML = '<div class="theme-settings"><p class="eyebrow">SETTINGS / APPEARANCE / THEMES</p><h2 id="settings-heading" tabindex="-1">Themes</h2><p class="muted">Choose a theme to preview it across your workspace. Apply it to keep your choice on this device.</p><div class="theme-options" role="radiogroup" aria-label="Available themes"></div><div class="theme-preview" aria-label="Theme preview"><div class="theme-preview__navigation">◈ &nbsp; ProPro <span>Workspace</span></div><div class="theme-preview__body"><div class="theme-preview__rail">⌂<br>▣<br>⚙</div><div class="theme-preview__canvas"><span class="theme-preview__eyebrow">YOUR WORKSPACE</span><h3>Current projects</h3><div class="theme-preview__card"><strong>Selected project</strong><span class="theme-preview__active">Active</span><p>Work remains readable on every surface.</p><span class="theme-preview__attention">Needs review</span><span class="theme-preview__notification">1 mention</span></div></div></div></div><div class="theme-settings__actions"><button id="theme-apply" class="primary" type="button">Apply theme</button><button id="theme-cancel" type="button">Cancel preview</button><span id="theme-status" role="status" aria-live="polite"></span></div></div>';
+  const options = container.querySelector('.theme-options');
+  for (const theme of themeManager.registry.themes) {
+    const label = document.createElement('label'); label.className = 'theme-option';
+    const input = document.createElement('input'); input.type = 'radio'; input.name = 'theme'; input.value = theme.id; input.checked = theme.id === document.documentElement.dataset.proproTheme;
+    const copy = document.createElement('span'); copy.innerHTML = `<strong>${esc(theme.name)}</strong><small>${esc(theme.description)}</small>`;
+    const swatches = document.createElement('span'); swatches.className = 'theme-option__swatches'; swatches.setAttribute('aria-hidden','true');
+    for (const key of ['navigation','secondary','accent','attention','notification','canvas']) { const swatch = document.createElement('i'); swatch.style.background = theme.tokens[key]; swatches.append(swatch); }
+    label.append(input,copy,swatches); options.append(label);
+  }
+  options.addEventListener('change',event => { if (event.target.name !== 'theme') return; themeManager.applyTheme(document,event.target.value); container.querySelector('#theme-status').textContent = `${themeManager.resolveTheme(event.target.value).name} preview`; });
+  container.querySelector('#theme-apply').addEventListener('click',() => { const id = options.querySelector('input:checked').value; try { selectedTheme = themeManager.savePreference(localStorage,id); container.querySelector('#theme-status').textContent = `${themeManager.resolveTheme(id).name} applied and saved`; } catch { container.querySelector('#theme-status').textContent = 'Theme is active, but this browser could not save it.'; } });
+  container.querySelector('#theme-cancel').addEventListener('click',() => { themeManager.applyTheme(document,selectedTheme); options.querySelector(`input[value="${selectedTheme}"]`).checked = true; container.querySelector('#theme-status').textContent = 'Preview canceled'; });
+}
 function activateWorkspaceTab(id) {
+  if (activeWorkspaceTab === 'settings' && id !== 'settings') themeManager.applyTheme(document,selectedTheme);
   const tab = ['home','workspace'].includes(id) ? null : workspaceTab(id);
   activeWorkspaceTab = tab?.id || (id === 'workspace' ? 'workspace' : 'home');
   if (tab && tab.kind !== 'dashboard') lastWorkTab = tab.id;
@@ -251,7 +277,7 @@ function renderWorkspaceTabs() {
   $('resume-work').hidden = !lastWorkTab || !workspaceTab(lastWorkTab);
   $('pin-dashboard').textContent = workspaceTab('dashboard-tab') ? 'Show dashboard tab' : 'Open dashboard as tab';
   $('detail').hidden = workspaceTab(activeWorkspaceTab)?.kind !== 'project';
-  workspaceExtra.hidden = activeWorkspaceTab !== 'workspace' && !['cli','file','entry','agent-manager','newsroom'].includes(workspaceTab(activeWorkspaceTab)?.kind);
+  workspaceExtra.hidden = activeWorkspaceTab !== 'workspace' && !['cli','file','entry','agent-manager','newsroom','settings'].includes(workspaceTab(activeWorkspaceTab)?.kind);
   const active = workspaceTab(activeWorkspaceTab);
   workspaceExtra.replaceChildren();
   if (activeWorkspaceTab === 'workspace') {
@@ -260,6 +286,8 @@ function renderWorkspaceTabs() {
     window.ProProAgentManager?.render(workspaceExtra);
   } else if (active?.kind === 'newsroom') {
     window.ProProNewsroom?.mount(workspaceExtra);
+  } else if (active?.kind === 'settings') {
+    renderThemeSettings();
   } else if (active?.kind === 'cli') {
     workspaceExtra.innerHTML = '<p class="eyebrow">WORKSPACE / CLI</p><h2>CLI scratchpad</h2><p class="muted">Preview local informational commands. Nothing runs on your computer.</p><form id="workspace-cli-form"><label for="workspace-cli-input">Command</label><div class="scratch-row"><input id="workspace-cli-input" placeholder="/help" autocomplete="off"><button type="submit">Preview</button></div></form><output id="workspace-cli-output" role="status" aria-live="polite"></output>';
     $('workspace-cli-input').value = active.commandDraft || '';

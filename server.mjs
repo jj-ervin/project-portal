@@ -25,7 +25,7 @@ const workflowFiles=new Map([['README.md','README.md'],['Product charter','docs/
 const reportsDir=join(root,'bootdog','work','sitreps');
 const routes = new Map([
   ['/', ['index.html','text/html']], ['/index.html', ['index.html','text/html']],
-  ['/styles.css', ['styles.css','text/css']], ['/app.mjs', ['app.mjs','text/javascript']], ['/model.mjs', ['model.mjs','text/javascript']],
+  ['/styles.css', ['styles.css','text/css']], ['/themes.css', ['themes.css','text/css']], ['/theme-registry.js', ['theme-registry.js','text/javascript']], ['/app.mjs', ['app.mjs','text/javascript']], ['/model.mjs', ['model.mjs','text/javascript']],
   ['/chat-client.mjs',['chat-client.mjs','text/javascript']],
   ['/newsroom-ui.js',['newsroom-ui.js','text/javascript']],
   ['/agent-manager-model.js',['agent-manager-model.js','text/javascript']], ['/agent-manager-ui.js',['agent-manager-ui.js','text/javascript']],
