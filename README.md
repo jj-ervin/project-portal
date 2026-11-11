@@ -27,3 +27,7 @@ Use Node 22 or newer and run `npm ci` once to install the pinned local Cockpit G
 For a local Windows app window, run `npm run desktop`. A portable x64 build can be created with `npm run desktop:package`; see [desktop app status and data behavior](docs/DESKTOP-APP.md). Desktop project data has its own profile, so transfer existing browser projects with Export JSON and Import JSON.
 
 Run `npm test` and `npm run test:browser` for model, browser, accessibility and viewport checks. See [PROP-CKP-001B implementation record](docs/PROP-CKP-001B-IMPLEMENTATION.md) for ownership, provenance and open acceptance gates.
+
+## Governance Commons Newsroom intake candidate
+
+The Newsroom activity opens an editorial desk with Inbox, Review, Drafts, Published and Sources & Discovery views. RSS/Atom discovery starts with the NIST news feed on first local server launch. Articles, provider history and triage are stored in `.propro/newsroom.json` for `npm start`, or in Electron's user data directory for the Windows app. Source links open the original article. Sources & Discovery controls feeds, OpenAlex query, Brave search queries and provider status. Brave requires `BRAVE_SEARCH_API_KEY`; GC Daily AI News requires a structured manual JSON import. The existing ChatGPT automation is untouched. Draft and publication actions remain for GC-NEWS-001B. The implementation contract lives in [ObCore](https://github.com/jj-ervin/observatory-core); this app pins a local package archive so desktop builds do not depend on a sibling checkout.

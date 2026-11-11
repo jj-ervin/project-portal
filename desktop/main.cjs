@@ -26,6 +26,7 @@ function startServerOnce() {
         PORT: String(PORT),
         PROPRO_CHAT_STORE: join(app.getPath('userData'), 'agents.json'),
         PROPRO_RUN_STORE: join(app.getPath('userData'), 'runs.json'),
+        PROPRO_NEWSROOM_STORE: join(app.getPath('userData'), 'newsroom.json'),
         PROPRO_BOOTDOG_STORE: join(app.getPath('userData'), 'bootdog-workflow.json')
       },
       stdio: ['ignore', 'pipe', 'pipe'],

@@ -30,7 +30,7 @@ try {
   previousBottomState = JSON.parse(localStorage.getItem('propro-bottom-pane-v1') || 'null');
 } catch {}
 const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), bottom: bottomPanel, storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [
-  {id:'home',label:'Home',glyph:'⌂'}, {id:'workspace',label:'Workspace',glyph:'▣'}, {id:'projects',label:'Projects',glyph:'▤'},
+  {id:'home',label:'Home',glyph:'⌂'}, {id:'workspace',label:'Workspace',glyph:'▣'}, {id:'projects',label:'Projects',glyph:'▤'}, {id:'newsroom',label:'Newsroom',glyph:'▥'},
   {id:'search',label:'Search',glyph:'⌕'}, {id:'conversation',label:'Conversation',glyph:'✦'},
   {id:'agents',label:'Agent Manager',glyph:'◈'}
 ], initialActivity:'home', onActivity: id => {
@@ -41,6 +41,7 @@ const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), e
   if (id === 'search') { activateWorkspaceTab('home'); $('global-search').focus(); }
   if (id === 'conversation') { workbench.setPanelVisible('context', true); syncLayoutControls(); $('composer-input').focus(); }
   if (id === 'agents') { openAgentManagerTab(); $('agent-manager-heading')?.focus(); }
+  if (id === 'newsroom') { openNewsroomTab(); $('workspace-extra').querySelector('h2')?.focus(); }
 }});
 if (!sharedBottomSaved && previousBottomState && typeof previousBottomState === 'object') {
   if (Number.isFinite(previousBottomState.height)) workbench.setBottomHeight(previousBottomState.height);
@@ -205,6 +206,10 @@ function openAgentManagerTab() {
   if (!workspaceTab('agent-manager')) workspaceTabs.push({id:'agent-manager',kind:'agent-manager',title:'Agent Manager'});
   activateWorkspaceTab('agent-manager');
 }
+function openNewsroomTab() {
+  if (!workspaceTab('newsroom')) workspaceTabs.push({id:'newsroom',kind:'newsroom',title:'Newsroom'});
+  activateWorkspaceTab('newsroom');
+}
 function activateWorkspaceTab(id) {
   const tab = ['home','workspace'].includes(id) ? null : workspaceTab(id);
   activeWorkspaceTab = tab?.id || (id === 'workspace' ? 'workspace' : 'home');
@@ -246,13 +251,15 @@ function renderWorkspaceTabs() {
   $('resume-work').hidden = !lastWorkTab || !workspaceTab(lastWorkTab);
   $('pin-dashboard').textContent = workspaceTab('dashboard-tab') ? 'Show dashboard tab' : 'Open dashboard as tab';
   $('detail').hidden = workspaceTab(activeWorkspaceTab)?.kind !== 'project';
-  workspaceExtra.hidden = activeWorkspaceTab !== 'workspace' && !['cli','file','entry','agent-manager'].includes(workspaceTab(activeWorkspaceTab)?.kind);
+  workspaceExtra.hidden = activeWorkspaceTab !== 'workspace' && !['cli','file','entry','agent-manager','newsroom'].includes(workspaceTab(activeWorkspaceTab)?.kind);
   const active = workspaceTab(activeWorkspaceTab);
   workspaceExtra.replaceChildren();
   if (activeWorkspaceTab === 'workspace') {
     workspaceExtra.innerHTML = '<p class="eyebrow">WORKSPACE</p><h2 tabindex="-1">Your open work</h2><p class="muted">Open a project from the Explorer, or start with a local file or CLI preview.</p>';
   } else if (active?.kind === 'agent-manager') {
     window.ProProAgentManager?.render(workspaceExtra);
+  } else if (active?.kind === 'newsroom') {
+    window.ProProNewsroom?.mount(workspaceExtra);
   } else if (active?.kind === 'cli') {
     workspaceExtra.innerHTML = '<p class="eyebrow">WORKSPACE / CLI</p><h2>CLI scratchpad</h2><p class="muted">Preview local informational commands. Nothing runs on your computer.</p><form id="workspace-cli-form"><label for="workspace-cli-input">Command</label><div class="scratch-row"><input id="workspace-cli-input" placeholder="/help" autocomplete="off"><button type="submit">Preview</button></div></form><output id="workspace-cli-output" role="status" aria-live="polite"></output>';
     $('workspace-cli-input').value = active.commandDraft || '';
