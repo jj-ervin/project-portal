@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@cockpit/gui": "file:vendor/cockpit-gui-0.1.4.tgz",
-    "@governancecommons/observatory-core": "file:vendor/observatory-core-0.1.2.tgz"
+    "@governancecommons/observatory-core": "file:vendor/observatory-core-0.1.4.tgz"
   },
   "build": {
     "appId": "org.propro.desktop",
