@@ -303,3 +303,35 @@ body { background:#f5f6fa; }
 #context.agent-connected .context-welcome,#context.agent-connected #composer-results,#context.agent-connected .context-eyebrow,#context.agent-connected .composer-tools .attach-button,#context.agent-connected #composer-scope,#context.agent-connected #composer-suggestions{display:none}
 
 .agent-environments{white-space:nowrap;overflow-x:auto}.agent-environments button{flex:0 0 auto;white-space:nowrap}.agent-model-tools{display:flex;flex:none;gap:5px;padding:5px 10px;border-bottom:1px solid var(--border)}.agent-model-tools[hidden]{display:none}.agent-model-tools select{flex:1;min-width:0;max-width:100%;font-size:11px;padding:4px}.agent-model-tools button{font-size:10px;padding:4px 6px}
+
+/* Agent Manager is a host-owned center work tab using the Cockpit workbench shell. */
+.manager-head h2{margin:3px 0 6px}.manager-head p:last-child{max-width:70ch;color:var(--muted)}
+.manager-toolbar,.manager-card-head,.manager-add{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.manager-toolbar{margin:16px 0}.manager-toolbar label,.manager-add label{display:grid;gap:4px;font-size:12px}
+.manager-toolbar select,.manager-add select,.manager-add input,.manager-role select{min-width:0;padding:7px;border:1px solid #ccd6e4;border-radius:6px;background:#fff;color:#273b57}
+.manager-toolbar button,.manager-card button,.manager-add button,.manager-agents button{padding:7px 10px;border:1px solid #ccd6e4;border-radius:6px;background:#fff;color:#354c9a;cursor:pointer}
+.manager-note{max-width:85ch;padding:10px 12px;border:1px solid #dbe4f5;border-radius:8px;background:#f2f6fc;font-size:12px;line-height:1.5}
+#manager-status{min-height:20px;color:var(--muted);font-size:12px}
+#workspace-extra>section[aria-label]{margin-top:23px}#workspace-extra>section[aria-label]>h3{font-size:15px}
+.manager-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:10px}
+.manager-card{min-width:0;padding:13px;border:1px solid #dfe4ee;border-radius:9px;background:#fff}
+.manager-card-head{justify-content:space-between;align-items:start}.manager-card h3{margin:0;font-size:14px}.manager-card p{font-size:11px;line-height:1.45;overflow-wrap:anywhere}.manager-state{font-size:10px;padding:3px 6px;border-radius:5px;background:#e9edf9;color:#354c9a}
+.manager-check{display:flex;align-items:center;gap:6px;margin:11px 0;font-size:11px}
+.manager-agents{list-style:none;padding:0;margin:10px 0}.manager-agents li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #e6eaf2;font-size:12px}.manager-agents li span{flex:1;min-width:180px;color:var(--muted)}
+.manager-roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:8px}.manager-role{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,1fr);align-items:center;gap:8px;padding:8px;border:1px solid #dfe4ee;border-radius:7px;background:#fff;font-size:12px}
+.manager-role small{grid-column:1/-1;color:#8b4d27}
+@media(max-width:500px){.manager-role{grid-template-columns:1fr}.manager-role select{width:100%}}
+
+/* Project-scoped agent runs stay in the bottom work region. */
+#utility-runs{overflow:auto;padding:12px;font-size:12px}
+#agent-run-form{display:grid;gap:8px;margin:8px 0}
+#agent-run-form label{display:grid;gap:4px}
+#agent-run-form select,#agent-run-form textarea{width:100%;min-width:0;border:1px solid #ccd6e4;border-radius:6px;padding:7px;font:inherit}
+#agent-run-form button,#agent-run-detail button{justify-self:start;padding:6px 10px;border:1px solid #ccd6e4;border-radius:6px;background:#fff;color:#354c9a}
+#agent-run-status{min-height:20px;color:var(--muted)}
+#agent-run-list{list-style:none;margin:8px 0;padding:0;max-height:100px;overflow:auto}
+#agent-run-list button{width:100%;text-align:left;padding:5px;border:0;background:transparent;overflow-wrap:anywhere}
+#agent-run-list button[aria-current=true]{background:#e9edf9}
+#agent-run-detail{border-top:1px solid #dfe4ee;padding-top:8px;overflow-wrap:anywhere}
+#agent-run-detail h4{margin:0 0 4px}
+#agent-run-detail pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}

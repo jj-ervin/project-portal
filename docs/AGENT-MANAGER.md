@@ -1,0 +1,15 @@
+# ProPro Agent Manager MVP
+
+Local implementation candidate, November 10, 2026. Open **Agent Manager** from the ProPro activity rail. It uses the existing Cockpit workbench and center tab; no separate application is started.
+
+The browser saves the selected Free-Only, Hybrid, Premium, or Custom profile, provider inclusion preferences, custom agent entries, and one assignment for each of 12 shared roles under `propro-agent-manager-v1`. This is separate from version 1 project data and exports. Assignments are planning preferences; they do not launch agents, authorize writes, change conversation adapters, or route work automatically. Removing a custom agent clears assignments to it.
+
+The initial catalog has Codex, Ollama, and Claude Code. Codex and Ollama are the existing ProPro conversation adapters. Claude Code is a catalog entry only. Its proposed fit against the approved 12 roles is visible as research guidance, not a verified capability. A local status check detects whether the Codex command launches and whether Ollama responds with downloaded local chat models. Codex account access is unverified until a successful turn. Ollama with a downloaded model is a local runnable candidate; the status check does not prove a successful inference on this device. The registry checkbox records a preference and never changes these availability facts.
+
+Free-Only excludes Codex and Claude Code from cost eligibility because no zero-cost entitlement has been established. Local Ollama may still incur hardware and electricity costs. Hybrid suggests local use with manual escalation. Premium and Custom remain manual selections. None of these profiles enforces spending, subscription terms, approval policy, or automatic routing. Role rows display conflicts with provider inclusion, profile cost policy, installation, and connection status.
+
+No ~47-agent research matrix was present in this repository at implementation time. The three catalog entries above come from the existing connected conversation paths and approved Claude Code design direction; the larger matrix needs an explicit source and review before import. There is no cross-provider session discovery, synchronization, resume, or Claude Code adapter in this MVP. Existing Codex and Ollama chats retain their own storage and behavior.
+
+Verification: `npm test` passes (29 tests) and `npm run test:browser` passes (25 tests), including Agent Manager persistence, narrow layout, and automated accessibility rules. Owner workflow and visual review, a successful live inference check, and portable desktop packaging remain separate acceptance checks.
+
+November 11 follow-up: a separate project-scoped read-only Codex run succeeded locally, confirming account access for that path on this machine. The Agent Manager status probe still does not verify a run or enforce the selected profile. The full ProPro suites later passed 36 unit and 29 Chromium browser checks; the portable build completed and its unpacked server was smoke-tested. Owner visual review and a packaged desktop window check remain open.

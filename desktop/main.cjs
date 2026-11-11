@@ -24,7 +24,9 @@ function startServerOnce() {
         ...process.env,
         ELECTRON_RUN_AS_NODE: '1',
         PORT: String(PORT),
-        PROPRO_CHAT_STORE: join(app.getPath('userData'), 'agents.json')
+        PROPRO_CHAT_STORE: join(app.getPath('userData'), 'agents.json'),
+        PROPRO_RUN_STORE: join(app.getPath('userData'), 'runs.json'),
+        PROPRO_BOOTDOG_STORE: join(app.getPath('userData'), 'bootdog-workflow.json')
       },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true

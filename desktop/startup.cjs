@@ -5,6 +5,9 @@ const {join} = require('node:path');
 
 const REQUIRED_FILES = Object.freeze([
   'server.mjs', 'chat-service.mjs', 'ollama.mjs', 'model.mjs',
+  'agent-runs.mjs', 'agent-runs-ui.js', 'agent-manager-model.js', 'agent-manager-ui.js',
+  'git-status.mjs', 'ide-launch.mjs', 'bootdog-workflow.mjs',
+  'workflow-ui/index.html', 'workflow-ui/app.js', 'workflow-ui/style.css',
   'index.html', 'app.mjs', 'chat-client.mjs', 'styles.css',
   'node_modules/@cockpit/gui/src/workbenchUI.js',
   'node_modules/@cockpit/gui/src/tabbedExplorerUI.js',

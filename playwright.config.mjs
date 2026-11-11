@@ -1,7 +1,8 @@
 import {defineConfig} from '@playwright/test';
 export default defineConfig({
   testDir: './tests/browser',
+  outputDir: '.scratch/playwright',
   timeout: 90000,
   use: {baseURL: `http://127.0.0.1:${process.env.PORT || 8000}`, browserName: 'chromium'},
-  webServer: {command: 'npm start', env:{PROPRO_CHAT_STORE:'test-results/browser-agent-sessions.json'}, url: `http://127.0.0.1:${process.env.PORT || 8000}`, reuseExistingServer: false, timeout: 30000}
+  webServer: {command: 'npm start', env:{PROPRO_CHAT_STORE:'.scratch/browser-agent-sessions.json',PROPRO_BOOTDOG_STORE:'.scratch/browser-bootdog.json',PROPRO_RUN_STORE:'.scratch/browser-agent-runs.json'}, url: `http://127.0.0.1:${process.env.PORT || 8000}`, reuseExistingServer: false, timeout: 30000}
 });

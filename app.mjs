@@ -31,7 +31,8 @@ try {
 } catch {}
 const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), explorer: $('explorer'), content: $('content'), context: $('context'), bottom: bottomPanel, storage: localStorage, storageKey: 'propro-workbench-widths-v1', activities: [
   {id:'home',label:'Home',glyph:'⌂'}, {id:'workspace',label:'Workspace',glyph:'▣'}, {id:'projects',label:'Projects',glyph:'▤'},
-  {id:'search',label:'Search',glyph:'⌕'}, {id:'conversation',label:'Conversation',glyph:'✦'}
+  {id:'search',label:'Search',glyph:'⌕'}, {id:'conversation',label:'Conversation',glyph:'✦'},
+  {id:'agents',label:'Agent Manager',glyph:'◈'}
 ], initialActivity:'home', onActivity: id => {
   workbench.activate(id);
   if (id === 'home') { portfolioFilter=''; detailTab = 'Overview'; filterQuery = ''; $('global-search').value = ''; activateWorkspaceTab('home'); $('dashboard-heading').focus(); }
@@ -39,6 +40,7 @@ const workbench = window.CockpitWorkbenchUI({document, layout: $('workbench'), e
   if (id === 'projects') { workbench.setPanelVisible('explorer', true); syncLayoutControls(); activateWorkspaceTab('home'); explorerUI.activate('projects', true); }
   if (id === 'search') { activateWorkspaceTab('home'); $('global-search').focus(); }
   if (id === 'conversation') { workbench.setPanelVisible('context', true); syncLayoutControls(); $('composer-input').focus(); }
+  if (id === 'agents') { openAgentManagerTab(); $('agent-manager-heading')?.focus(); }
 }});
 if (!sharedBottomSaved && previousBottomState && typeof previousBottomState === 'object') {
   if (Number.isFinite(previousBottomState.height)) workbench.setBottomHeight(previousBottomState.height);
@@ -78,11 +80,29 @@ const explorerUI = window.CockpitTabbedExplorerUI({document, root:$('tabbed-expl
     const children = ['resources','evidence','links'].flatMap(kind => project[kind].map(entry => ({id:`asset:${project.id}:${kind}:${entry.id}`,label:entry.title,meta:{resources:'Resource',evidence:'Evidence',links:'Link'}[kind],projectId:project.id,entryKind:kind,entryId:entry.id})));
     return children.length ? [{id:`assets:${project.id}`,label:project.name,children}] : [];
   })}),open:node => { if (node.entryId) openEntryTab(node.projectId,node.entryKind,node.entryId); }}},
-  {id:'git',label:'Git',icon:'⑂',unavailableMessage:'Git is not connected to this browser workspace. No repositories or changes are being read.'},
+  {id:'git',label:'Git',icon:'⑂',provider:{getNodes:async() => {
+    const project=current();
+    if (!project) return {message:'Select a project to inspect its linked local Git folders.',nodes:[]};
+    const folders=project.resources.filter(entry=>entry.connection?.kind==='folder').slice(0,10);
+    if (!folders.length) return {message:'Git is not connected. Add a local repository folder in this project’s Resources.',nodes:[]};
+    if (location.protocol!=='http:') return {message:'Run npm start on Windows to inspect linked repositories.',nodes:[]};
+    const nodes=await Promise.all(folders.map(async entry=>{
+      try {
+        const response=await fetch('/api/git/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(entry.connection)});
+        const result=await response.json();
+        return {id:`git:${entry.id}`,label:entry.title,children:response.ok ? [
+          {id:`git:${entry.id}:branch`,label:`Branch: ${result.branch}`},
+          ...(result.changes.length ? result.changes.map((line,index)=>({id:`git:${entry.id}:change:${index}`,label:line})) : [{id:`git:${entry.id}:clean`,label:'Working tree clean'}]),
+          ...(result.truncated ? [{id:`git:${entry.id}:more`,label:'More changes omitted'}] : [])
+        ] : [{id:`git:${entry.id}:error`,label:result.error||'Git status unavailable'}]};
+      } catch {return {id:`git:${entry.id}`,label:entry.title,children:[{id:`git:${entry.id}:error`,label:'Git status unavailable'}]};}
+    }));
+    return {message:'Read-only status of linked local folders. Refresh by reopening Git.',nodes};
+  }}},
   {id:'conversations',label:'Conversations',icon:'✦',unavailableMessage:'Conversation history is not connected. This pane cannot read your chats.'}
 ]});
-const utilityTabs = ['terminal', 'problems', 'notes'];
-const utilityLabels = {terminal:'CLI scratchpad', problems:'Problems', notes:'Notes'};
+const utilityTabs = ['terminal', 'runs', 'problems', 'notes'];
+const utilityLabels = {terminal:'CLI scratchpad', runs:'Agent runs', problems:'Problems', notes:'Notes'};
 const tabStrip = document.createElement('div');
 tabStrip.className = 'utility-tabs';
 tabStrip.setAttribute('role', 'tablist');
@@ -97,10 +117,11 @@ for (const id of utilityTabs) {
 bottomPanel.append(tabStrip);
 const extraViews = {
   terminal: '<p class="context-eyebrow">LOCAL COMMAND PREVIEW</p><h3>CLI scratchpad</h3><p>Try /help or /status. Nothing runs on your computer.</p><form id="scratch-form"><label for="scratch-input">Command</label><div class="scratch-row"><input id="scratch-input" autocomplete="off" placeholder="/help"><button type="submit">Preview</button></div></form><output id="scratch-output" role="status" aria-live="polite"></output>',
+  runs: '<h3>Agent runs</h3><p class="muted">Start one read-only Codex run for a selected project and linked folder. Role assignments do not start runs; profile preferences do not enforce account costs.</p><form id="agent-run-form"><label>Linked folder <select id="agent-run-folder" required></select></label><label>Instructions <textarea id="agent-run-instructions" maxlength="8000" rows="3" required></textarea></label><button type="submit">Start read-only run</button></form><p id="agent-run-status" role="status" aria-live="polite"></p><ul id="agent-run-list"></ul><section id="agent-run-detail" aria-label="Selected agent run"></section>',
   problems: '<p class="context-eyebrow">WORKSPACE STATUS</p><h3>Problems</h3><p id="problem-summary"></p>',
   notes: '<p class="context-eyebrow">LOCAL SCRATCH NOTES</p><h3>Notes</h3><label for="panel-notes">Saved in this browser</label><textarea id="panel-notes" rows="8" placeholder="Keep a quick note here…"></textarea>'
 };
-for (const id of ['terminal', 'problems', 'notes']) {
+for (const id of utilityTabs) {
   const panel = document.createElement('section');
   panel.id = `utility-${id}`; panel.className = 'utility-view utility-extra';
   panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', `utility-tab-${id}`);
@@ -116,6 +137,7 @@ function activateUtilityTab(id) {
     $(`utility-${name}`).hidden = !active;
   }
   if (id === 'problems') $('problem-summary').textContent = loadError ? 'Saved project data could not be read. Import a valid backup before editing.' : 'No project data problems detected. This view does not inspect external services.';
+  if (id === 'runs') window.ProProAgentRuns?.activate?.();
   try { localStorage.setItem(utilityTabKey, id); } catch {}
 }
 let initialUtilityTab = 'terminal';
@@ -179,6 +201,10 @@ function openCliTab() {
   if (!workspaceTab('cli')) workspaceTabs.push({id:'cli',kind:'cli',title:'CLI scratchpad'});
   activateWorkspaceTab('cli');
 }
+function openAgentManagerTab() {
+  if (!workspaceTab('agent-manager')) workspaceTabs.push({id:'agent-manager',kind:'agent-manager',title:'Agent Manager'});
+  activateWorkspaceTab('agent-manager');
+}
 function activateWorkspaceTab(id) {
   const tab = ['home','workspace'].includes(id) ? null : workspaceTab(id);
   activeWorkspaceTab = tab?.id || (id === 'workspace' ? 'workspace' : 'home');
@@ -220,11 +246,13 @@ function renderWorkspaceTabs() {
   $('resume-work').hidden = !lastWorkTab || !workspaceTab(lastWorkTab);
   $('pin-dashboard').textContent = workspaceTab('dashboard-tab') ? 'Show dashboard tab' : 'Open dashboard as tab';
   $('detail').hidden = workspaceTab(activeWorkspaceTab)?.kind !== 'project';
-  workspaceExtra.hidden = activeWorkspaceTab !== 'workspace' && !['cli','file','entry'].includes(workspaceTab(activeWorkspaceTab)?.kind);
+  workspaceExtra.hidden = activeWorkspaceTab !== 'workspace' && !['cli','file','entry','agent-manager'].includes(workspaceTab(activeWorkspaceTab)?.kind);
   const active = workspaceTab(activeWorkspaceTab);
   workspaceExtra.replaceChildren();
   if (activeWorkspaceTab === 'workspace') {
     workspaceExtra.innerHTML = '<p class="eyebrow">WORKSPACE</p><h2 tabindex="-1">Your open work</h2><p class="muted">Open a project from the Explorer, or start with a local file or CLI preview.</p>';
+  } else if (active?.kind === 'agent-manager') {
+    window.ProProAgentManager?.render(workspaceExtra);
   } else if (active?.kind === 'cli') {
     workspaceExtra.innerHTML = '<p class="eyebrow">WORKSPACE / CLI</p><h2>CLI scratchpad</h2><p class="muted">Preview local informational commands. Nothing runs on your computer.</p><form id="workspace-cli-form"><label for="workspace-cli-input">Command</label><div class="scratch-row"><input id="workspace-cli-input" placeholder="/help" autocomplete="off"><button type="submit">Preview</button></div></form><output id="workspace-cli-output" role="status" aria-live="polite"></output>';
     $('workspace-cli-input').value = active.commandDraft || '';
@@ -242,7 +270,7 @@ function renderWorkspaceTabs() {
     const project = data.projects.find(item => item.id === active.projectId);
     const item = project?.[active.entryKind]?.find(value => value.id === active.entryId);
     const label = {items:'Task',resources:'Resource',evidence:'Evidence',links:'Link'}[active.entryKind];
-    workspaceExtra.innerHTML = `<p class="eyebrow">${esc(label || 'ENTRY')} / ${esc(project?.name || 'Project')}</p><h2>${esc(item?.title || 'Entry unavailable')}</h2><p class="muted">${item?.connection ? `${esc(item.connection.kind)} · ${esc(item.connection.locator)}` : item ? 'This is a local project entry.' : 'This entry is no longer in the project.'}</p>${item?.connection ? `<button type="button" data-open-resource="${esc(item.id)}" data-resource-project="${esc(project.id)}">Open resource</button>` : ''}<button type="button" data-select="${esc(active.projectId)}">Open project</button>`;
+    workspaceExtra.innerHTML = `<p class="eyebrow">${esc(label || 'ENTRY')} / ${esc(project?.name || 'Project')}</p><h2>${esc(item?.title || 'Entry unavailable')}</h2><p class="muted">${item?.connection ? `${esc(item.connection.kind)} · ${esc(item.connection.locator)}` : item ? 'This is a local project entry.' : 'This entry is no longer in the project.'}</p>${item?.connection ? `<button type="button" data-open-resource="${esc(item.id)}" data-resource-project="${esc(project.id)}">Open resource</button>` : ''}${active.entryKind==='resources' ? vsCodeButton(item,project?.id) : ''}<button type="button" data-select="${esc(active.projectId)}">Open project</button>`;
   }
 }
 function commandPreview(command) {
@@ -359,6 +387,17 @@ async function openResource(entry) {
     notice(response.ok ? `Opened ${entry.title}.` : result.error || 'Could not open resource.');
   } catch { notice('Local opening is unavailable. Run npm start on Windows.'); }
 }
+function vsCodeButton(entry,projectId) {
+  return entry?.connection?.kind==='folder' ? `<button type="button" data-open-vscode="${esc(entry.id)}" data-resource-project="${esc(projectId)}" aria-label="Open ${esc(entry.title)} in VS Code">Open in VS Code</button>` : '';
+}
+async function openInVSCode(entry) {
+  if (location.protocol!=='http:') {notice('Run npm start on Windows to open VS Code.');return;}
+  try {
+    const response=await fetch('/api/ide/vscode/open',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(entry.connection)});
+    const result=await response.json();
+    notice(response.ok ? `Opening ${entry.title} in VS Code.` : result.error||'Could not open VS Code.');
+  } catch {notice('VS Code launch is unavailable. Run npm start on Windows.');}
+}
 function renderAttachments() {
   $('composer-attachments').innerHTML = attachments.map((file, index) => `<span class="attachment-chip">${esc(file.name)} <button type="button" data-attachment="${index}" aria-label="Remove ${esc(file.name)}">×</button></span>`).join('');
 }
@@ -427,6 +466,7 @@ function render() {
   $('section-count').textContent = `${visibleProjects.length} shown`;
   $('context-project').textContent = p ? p.name : 'All projects';
   window.ProProAgentChat?.contextChanged?.();
+  window.ProProAgentRuns?.contextChanged?.();
   document.querySelectorAll('button[data-mode]').forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.mode === prefs.mode)); });
   $('cards').dataset.mode = prefs.mode;
   $('cards').innerHTML = visibleProjects.map(x => {
@@ -449,7 +489,7 @@ function detailHTML(p) {
   else if (detailTab === 'Tasks') body = taskHTML(p);
   else if (['Resources','Evidence','Links'].includes(detailTab)) {
     const key = {Tasks:'items',Resources:'resources',Evidence:'evidence',Links:'links'}[detailTab];
-    body = `<form id="entry-form" class="entry-form"><label>New ${detailTab.toLowerCase()} entry<input name="title" maxlength="1000" required></label>${key === 'resources' ? '<label>Destination type<select name="resourceKind"><option value="">Title only</option><option value="file">Local file</option><option value="folder">Local folder</option><option value="url">Web URL</option><option value="application">Windows application</option></select></label><label>URL or absolute Windows path<input name="locator" maxlength="2048" placeholder="https://example.com or C:\\path\\file.txt"></label>' : ''}<button class="primary" type="submit">Add entry</button></form><ul class="entry-list">${p[key].map(x => { const pinKey = `entry:${p.id}:${key}:${x.id}`; return `<li><span>${esc(x.title)}${x.connection ? `<small>${esc(x.connection.kind)} · ${esc(x.connection.locator)}</small>` : ''}</span>${x.connection ? `<button type="button" data-open-resource="${esc(x.id)}" data-resource-project="${esc(p.id)}" aria-label="Open ${esc(x.title)}">Open</button>` : ''}<button type="button" data-pin-home="${esc(pinKey)}" aria-label="${homePins.includes(pinKey) ? `Pinned ${esc(x.title)}; unpin from Home` : `Pin ${esc(x.title)} to Home`}" aria-pressed="${homePins.includes(pinKey)}">${homePins.includes(pinKey) ? 'Pinned' : 'Pin'}</button><button type="button" data-remove="${esc(x.id)}" data-kind="${key}" aria-label="Remove ${esc(x.title)}">Remove</button></li>`; }).join('')}</ul>${p[key].length ? '' : '<p class="muted">No entries yet.</p>'}`;
+    body = `<form id="entry-form" class="entry-form"><label>New ${detailTab.toLowerCase()} entry<input name="title" maxlength="1000" required></label>${key === 'resources' ? '<label>Destination type<select name="resourceKind"><option value="">Title only</option><option value="file">Local file</option><option value="folder">Local folder</option><option value="url">Web URL</option><option value="application">Windows application</option></select></label><label>URL or absolute Windows path<input name="locator" maxlength="2048" placeholder="https://example.com or C:\\path\\file.txt"></label>' : ''}<button class="primary" type="submit">Add entry</button></form><ul class="entry-list">${p[key].map(x => { const pinKey = `entry:${p.id}:${key}:${x.id}`; return `<li><span>${esc(x.title)}${x.connection ? `<small>${esc(x.connection.kind)} · ${esc(x.connection.locator)}</small>` : ''}</span>${x.connection ? `<button type="button" data-open-resource="${esc(x.id)}" data-resource-project="${esc(p.id)}" aria-label="Open ${esc(x.title)}">Open</button>` : ''}${key==='resources' ? vsCodeButton(x,p.id) : ''}<button type="button" data-pin-home="${esc(pinKey)}" aria-label="${homePins.includes(pinKey) ? `Pinned ${esc(x.title)}; unpin from Home` : `Pin ${esc(x.title)} to Home`}" aria-pressed="${homePins.includes(pinKey)}">${homePins.includes(pinKey) ? 'Pinned' : 'Pin'}</button><button type="button" data-remove="${esc(x.id)}" data-kind="${key}" aria-label="Remove ${esc(x.title)}">Remove</button></li>`; }).join('')}</ul>${p[key].length ? '' : '<p class="muted">No entries yet.</p>'}`;
   } else body = `<p class="muted">${esc(detailTab)} is enabled. A specialist editor is not available yet; use the shared entries above.</p>`;
   return `<section class="detail-panel" aria-label="Selected project"><div class="detail-head"><div><p class="eyebrow">Selected project</p><h2 id="detail-heading" tabindex="-1">${esc(p.name)}</h2></div>${detailTab === 'Overview' ? `<form id="rename-form" class="rename-form"><label>Rename project<input name="name" maxlength="200" required value="${esc(p.name)}"></label><button type="submit">Rename</button></form>` : ''}</div><div class="detail-tabs" role="group" aria-label="Project sections">${tabs.map(t => `<button type="button" data-tab="${esc(t)}" aria-pressed="${t === detailTab}">${esc(t)}</button>`).join('')}</div><div class="detail-body">${body}</div></section>`;
 }
@@ -511,6 +551,7 @@ document.addEventListener('click', e => {
   if (button.dataset.pinHome) { toggleHomePin(button.dataset.pinHome); return; }
   if (button.dataset.openPin) { openHomePin(button.dataset.openPin); return; }
   if (button.dataset.openResource) { const entry = data.projects.find(p => p.id === button.dataset.resourceProject)?.resources.find(x => x.id === button.dataset.openResource); if (entry) openResource(entry); return; }
+  if (button.dataset.openVscode) { const entry = data.projects.find(p => p.id === button.dataset.resourceProject)?.resources.find(x => x.id === button.dataset.openVscode); if (entry?.connection?.kind==='folder') openInVSCode(entry); return; }
   if (button.dataset.taskOpen) { const task = current()?.items.find(item => item.id === button.dataset.taskOpen); if (task?.connection) openResource(task); return; }
   if (button.dataset.mode && MODES.includes(button.dataset.mode)) { prefs.mode = button.dataset.mode; savePrefs(); render(); }
   if (button.dataset.select) select(button.dataset.select);
@@ -565,6 +606,7 @@ if (typeof ResizeObserver === 'function') {
 }
 
 window.ProProProjectContext = () => {const p=current();return p?{id:p.id,name:p.name,capabilities:[...p.capabilities],tasks:p.items.slice(0,20).map(i=>i.title.slice(0,500))}:null};
+window.ProProRunContext = () => {const p=current();return p?{id:p.id,name:p.name,folders:p.resources.filter(r=>r.connection?.kind==='folder').map(r=>({id:r.id,title:r.title,connection:r.connection}))}:null};
 // Clamp the shared component through its public API rather than growing the page.
 function fitBottomToWindow(){if(innerWidth<=1050)return;const max=Math.min(480,Math.max(160,$('workbench').clientHeight-320));const grip=$('workbench').querySelector('[aria-label="Resize bottom panel"]');grip?.setAttribute('aria-valuemax',String(Math.round(max)));if(workbench.bottomHeight()>max)workbench.setBottomHeight(max)}
 new ResizeObserver(fitBottomToWindow).observe($('workbench'));

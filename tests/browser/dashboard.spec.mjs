@@ -61,7 +61,7 @@ test('tabbed Explorer keeps independent views, opens local records, and exposes 
   await page.locator('#open-home-file').setInputFiles({name:'notes.md',mimeType:'text/markdown',buffer:Buffer.from('# Local note')});
   await expect(explorer.getByRole('treeitem',{name:'notes.md'})).toBeVisible();
   await tabs.getByRole('tab',{name:'Git'}).click();
-  await expect(explorer.getByRole('status')).toContainText('not connected');
+  await expect(explorer.getByRole('status')).toContainText('Select a project to inspect its linked local Git folders');
   await tabs.getByRole('tab',{name:'Conversations'}).click();
   await expect(explorer.getByRole('status')).toContainText('cannot read your chats');
   await explorer.getByLabel('Customize Explorer tabs').click();

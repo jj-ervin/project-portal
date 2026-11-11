@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp, mkdir, writeFile, rm} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createRequire} from 'node:module';
 
@@ -9,7 +8,8 @@ const require = createRequire(import.meta.url);
 const {waitForFiles, startupMessage} = require('../desktop/startup.cjs');
 
 test('portable startup waits for a delayed bundled module', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'propro-startup-'));
+  await mkdir('.scratch', {recursive:true});
+  const root = await mkdtemp('.scratch/propro-startup-');
   try {
     const pending = waitForFiles(root, ['server.mjs', 'chat-service.mjs'],
       {timeoutMs: 2000, intervalMs: 20, stableMs: 40});
@@ -22,7 +22,8 @@ test('portable startup waits for a delayed bundled module', async () => {
 });
 
 test('portable startup names a module that never arrives', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'propro-startup-'));
+  await mkdir('.scratch', {recursive:true});
+  const root = await mkdtemp('.scratch/propro-startup-');
   try {
     await assert.rejects(
       waitForFiles(root, ['chat-service.mjs'], {timeoutMs: 60, intervalMs: 20, stableMs: 20}),
