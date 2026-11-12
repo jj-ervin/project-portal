@@ -11,12 +11,15 @@ test('portable startup waits for a delayed bundled module', async () => {
   await mkdir('.scratch', {recursive:true});
   const root = await mkdtemp('.scratch/propro-startup-');
   try {
-    const pending = waitForFiles(root, ['server.mjs', 'chat-service.mjs'],
+    const newsroom = 'node_modules/@governancecommons/observatory-core/src/discovery/newsroom.mjs';
+    const pending = waitForFiles(root, ['server.mjs', 'chat-service.mjs', newsroom],
       {timeoutMs: 2000, intervalMs: 20, stableMs: 40});
     await mkdir(root, {recursive: true});
     await writeFile(join(root, 'server.mjs'), 'export {}');
     await new Promise(resolve => setTimeout(resolve, 80));
     await writeFile(join(root, 'chat-service.mjs'), 'export {}');
+    await mkdir(join(root, 'node_modules/@governancecommons/observatory-core/src/discovery'), {recursive:true});
+    await writeFile(join(root, newsroom), 'export {}');
     await pending;
   } finally { await rm(root, {recursive: true, force: true}); }
 });

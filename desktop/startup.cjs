@@ -11,7 +11,8 @@ const REQUIRED_FILES = Object.freeze([
   'index.html', 'app.mjs', 'chat-client.mjs', 'styles.css',
   'node_modules/@cockpit/gui/src/workbenchUI.js',
   'node_modules/@cockpit/gui/src/tabbedExplorerUI.js',
-  'node_modules/@cockpit/gui/src/cockpitGUI.css'
+  'node_modules/@cockpit/gui/src/cockpitGUI.css',
+  'node_modules/@governancecommons/observatory-core/src/discovery/newsroom.mjs'
 ]);
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
