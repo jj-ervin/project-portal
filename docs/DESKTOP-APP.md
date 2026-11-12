@@ -4,6 +4,8 @@ Status: Windows local candidate. This packages the existing ProPro project, task
 
 From `C:\dev\project-portal`, run `npm ci` and `npm run desktop` for development. Run `npm run desktop:package` to build a portable Windows x64 executable under `release/`. Do not copy the executable alone until its packaged files and launch have been checked; the portable target bundles its runtime.
 
+`npm test` includes an offline runtime-package install from only this repository's lockfile and checked-in Cockpit GUI and Observatory Core archives, staged under `.scratch/`. CI repeats `npm ci` and that test from a clean checkout. This verifies package resolution and import boundaries; a Windows portable build and clean-user launch still require separate acceptance.
+
 The app starts its own loopback server on `127.0.0.1:8765` and keeps that port fixed so browser storage retains the same origin between launches. ProPro's desktop profile stores project records in Electron's application data directory; agent conversation history is stored there as `agents.json`. An existing browser profile is separate. Use Export JSON in the browser and Import JSON in the desktop app to move project records. Import replaces the desktop profile's current projects only after confirmation, so export a backup first.
 
 The app allows external HTTP(S) links to open through the operating system. Node integration and renderer process access to local files are disabled. Local file, folder and application resources still use the existing explicit Open action and Windows loopback route. Port 8765 must be free; the app stops with an error if it is occupied. One desktop instance is allowed at a time.

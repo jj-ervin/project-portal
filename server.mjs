@@ -10,18 +10,24 @@ import {createWorkflow} from './bootdog-workflow.mjs';
 import {readGitStatus} from './git-status.mjs';
 import {openInVSCode} from './ide-launch.mjs';
 import {createAgentRuns} from './agent-runs.mjs';
+import {NewsroomDiscovery} from '@governancecommons/observatory-core/src/discovery/newsroom.mjs';
 import './model.mjs';
 const runFile = promisify(execFile);
 const root = dirname(fileURLToPath(import.meta.url));
 const chat = await createChatService({file:process.env.PROPRO_CHAT_STORE||join(root,'.propro','agents.json'),cwd:root});
 const runs = await createAgentRuns({file:process.env.PROPRO_RUN_STORE||join(root,'.propro','runs.json')});
+const newsroom = await NewsroomDiscovery.open(process.env.PROPRO_NEWSROOM_STORE||join(root,'.propro','newsroom.json'));
+if (!newsroom.providers().find(p=>p.id==='rss')?.status.lastSuccess) void newsroom.collect('rss').catch(error=>console.error('Newsroom first collection:',error.message));
+const rssPoll=setInterval(()=>{if(newsroom.providers().find(p=>p.id==='rss')?.enabled)void newsroom.collect('rss').catch(error=>console.error('Newsroom RSS poll:',error.message));},30*60*1000);
+rssPoll.unref();
 const workflow = createWorkflow({root,...(process.env.PROPRO_BOOTDOG_STORE?{stateFile:process.env.PROPRO_BOOTDOG_STORE}:{})});
 const workflowFiles=new Map([['README.md','README.md'],['Product charter','docs/PRODUCT-CHARTER.md'],['Implementation record','docs/PROP-CKP-001B-IMPLEMENTATION.md'],['Workspace plan','docs/PROPRO-002.md']]);
 const reportsDir=join(root,'bootdog','work','sitreps');
 const routes = new Map([
   ['/', ['index.html','text/html']], ['/index.html', ['index.html','text/html']],
-  ['/styles.css', ['styles.css','text/css']], ['/app.mjs', ['app.mjs','text/javascript']], ['/model.mjs', ['model.mjs','text/javascript']],
+  ['/styles.css', ['styles.css','text/css']], ['/themes.css', ['themes.css','text/css']], ['/theme-registry.js', ['theme-registry.js','text/javascript']], ['/app.mjs', ['app.mjs','text/javascript']], ['/model.mjs', ['model.mjs','text/javascript']],
   ['/chat-client.mjs',['chat-client.mjs','text/javascript']],
+  ['/newsroom-ui.js',['newsroom-ui.js','text/javascript']],
   ['/agent-manager-model.js',['agent-manager-model.js','text/javascript']], ['/agent-manager-ui.js',['agent-manager-ui.js','text/javascript']],
   ['/agent-runs-ui.js',['agent-runs-ui.js','text/javascript']],
   ['/workflow/',['workflow-ui/index.html','text/html']], ['/workflow/index.html',['workflow-ui/index.html','text/html']], ['/workflow/app.js',['workflow-ui/app.js','text/javascript']], ['/workflow/style.css',['workflow-ui/style.css','text/css']],
@@ -34,6 +40,18 @@ const server=createServer(async (req, res) => {
   const url=new URL(req.url,'http://localhost');
   const json=(data,status=200)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(data))};
   if(!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(req.headers.host||''))return json({error:'Host not allowed'},403);
+  if(url.pathname.startsWith('/api/newsroom/')) {try {
+    if(req.method==='GET'&&url.pathname==='/api/newsroom/articles')return json(newsroom.list());
+    if(req.method==='GET'&&url.pathname==='/api/newsroom/providers')return json(newsroom.providers());
+    if(req.method!=='POST'||req.headers.origin!==`http://${req.headers.host}`)return json({error:'Method or origin not allowed'},403);
+    req.setEncoding('utf8');let body='',size=0;for await(const chunk of req){size+=Buffer.byteLength(chunk);if(size>200000)return json({error:'Request too large'},413);body+=chunk}
+    const input=JSON.parse(body||'{}');
+    if(url.pathname==='/api/newsroom/triage')return json(await newsroom.triage(input.id,input.decision));
+    if(url.pathname==='/api/newsroom/provider')return json(await newsroom.configure(input));
+    if(url.pathname==='/api/newsroom/collect')return json(await newsroom.collect(input.id));
+    if(url.pathname==='/api/newsroom/import')return json(await newsroom.importBriefing(input));
+    return json({error:'Not found'},404);
+  }catch(error){return json({error:String(error.message||'Newsroom error').slice(0,300)},error instanceof TypeError?400:500)}}
   if(url.pathname==='/api/agent-manager/status') {
     if(req.method!=='GET')return json({error:'Method not allowed'},405);
     let installed=false;

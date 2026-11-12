@@ -14,7 +14,8 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@cockpit/gui": "file:vendor/cockpit-gui-0.1.4.tgz"
+    "@cockpit/gui": "file:vendor/cockpit-gui-0.1.4.tgz",
+    "@governancecommons/observatory-core": "file:vendor/observatory-core-0.1.4.tgz"
   },
   "build": {
     "appId": "org.propro.desktop",
@@ -22,10 +23,10 @@
     "asar": false,
     "directories": {"output": "release"},
     "files": [
-      "desktop/**", "app.mjs", "agent-manager-model.js", "agent-manager-ui.js", "chat-client.mjs", "chat-service.mjs",
+      "desktop/**", "app.mjs", "agent-manager-model.js", "agent-manager-ui.js", "chat-client.mjs", "chat-service.mjs", "newsroom-ui.js", "theme-registry.js", "themes.css",
       "index.html", "model.mjs", "ollama.mjs", "open-resource.ps1", "agent-runs.mjs", "agent-runs-ui.js",
       "server.mjs", "git-status.mjs", "ide-launch.mjs", "bootdog-workflow.mjs", "workflow-ui/**",
-      "styles.css", "node_modules/@cockpit/gui/**"
+      "styles.css", "node_modules/@cockpit/gui/**", "node_modules/@governancecommons/observatory-core/**"
     ],
     "win": {"target": [{"target": "portable", "arch": ["x64"]}]}
   },

@@ -4,5 +4,5 @@ export default defineConfig({
   outputDir: '.scratch/playwright',
   timeout: 90000,
   use: {baseURL: `http://127.0.0.1:${process.env.PORT || 8000}`, browserName: 'chromium'},
-  webServer: {command: 'npm start', env:{PROPRO_CHAT_STORE:'.scratch/browser-agent-sessions.json',PROPRO_BOOTDOG_STORE:'.scratch/browser-bootdog.json',PROPRO_RUN_STORE:'.scratch/browser-agent-runs.json'}, url: `http://127.0.0.1:${process.env.PORT || 8000}`, reuseExistingServer: false, timeout: 30000}
+  webServer: {command: 'npm start', env:{PROPRO_CHAT_STORE:'.scratch/browser-agent-sessions.json',PROPRO_BOOTDOG_STORE:'.scratch/browser-bootdog.json',PROPRO_RUN_STORE:'.scratch/browser-agent-runs.json',PROPRO_NEWSROOM_STORE:'.scratch/browser-newsroom.json'}, url: `http://127.0.0.1:${process.env.PORT || 8000}`, reuseExistingServer: false, timeout: 30000}
 });
